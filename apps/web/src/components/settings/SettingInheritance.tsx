@@ -57,7 +57,11 @@ function formatValue(key: keyof ServerSettings, value: unknown): string {
   if (typeof value === "number") {
     return key === "sidebarAutoSettleAfterDays"
       ? `${value} ${value === 1 ? "day" : "days"}`
-      : String(value);
+      : key === "pullRequestChildRepositoryDepth"
+        ? value === 0
+          ? "Off"
+          : `${value} ${value === 1 ? "level" : "levels"} deep`
+        : String(value);
   }
   if (typeof value === "string") {
     if (key === "defaultThreadEnvMode" && (value === "local" || value === "worktree")) {

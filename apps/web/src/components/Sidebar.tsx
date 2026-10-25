@@ -155,7 +155,6 @@ import {
   resolveSidebarDropVerb,
   resolveSidebarThreadSection,
   searchSidebarThreads,
-  shouldCreateNewThreadInCurrentProject,
   shouldNavigateAfterThreadPark,
   sidebarListItemId,
   sidebarThreadKeyAtY,
@@ -197,6 +196,21 @@ import {
   useComboboxFilter,
 } from "./ui/combobox";
 import { SidebarContent, SidebarGroup, useSidebar } from "./ui/sidebar";
+import { ardiaAvailable } from "../browser/ardia/ardiaHostStore";
+import { useSpaceThreads } from "../browser/rome/useSpaceThreads";
+import { isSwitchingSpace, useBrowserModel } from "../browser/rome/browserStore";
+import { spaceOfThread, useThreadSpaceStore } from "../browser/rome/threadSpaceStore";
+import { RomeSidebarChrome } from "./sidebar/rome/RomeSidebarChrome";
+import { RomeSidebarTop } from "./sidebar/rome/RomeSidebarTop";
+import { SpaceTabs, ThreadTabs } from "./sidebar/rome/SpaceTabs";
+import { SplitGroups } from "./sidebar/rome/SplitGroup";
+import { SpaceFolders } from "./sidebar/rome/SpaceFolders";
+import { FolderDragLayer } from "./sidebar/rome/FolderDragLayer";
+import { applyMoveToFolder, moveToFolderMenu } from "./sidebar/rome/folderMenus";
+import { filedItems, folderItem, useFolderStore } from "../browser/rome/folderStore";
+import { SpaceDialog } from "./sidebar/rome/SpaceDialog";
+import { useSplitViewStore } from "../splitViewStore";
+import { openNewScreen, useNewScreenStore } from "../newScreenStore";
 import { SidebarChromeFooter, SidebarChromeHeader } from "./sidebar/SidebarChrome";
 import { SidebarHeaderIconButton, SidebarThreadHeader } from "./sidebar/SidebarThreadHeader";
 import { TooltipProvider } from "./ui/tooltip";
@@ -361,7 +375,21 @@ function useSidebarThreads(input: {
 }) {
   const { projectScopeKey, scopedProjectKeys, serverConfigs, optimisticDrop, routeThreadRef } =
     input;
-  const threads = useQuietThreadShells();
+  const allThreads = useQuietThreadShells();
+  const spaceThreads = useSpaceThreads(allThreads);
+  // Chats in a split appear once, in their split's box above the list.
+  const splitGroups = useSplitViewStore((state) => state.groups);
+  const splitMemberKeys = new Set(splitGroups.flatMap((group) => group.rows.flat()));
+  // Chats in a folder appear in the folder instead.
+  const folders = useFolderStore((state) => state.folders);
+  const filed = filedItems(folders);
+  const threads =
+    splitMemberKeys.size || filed.size
+      ? spaceThreads.filter((thread) => {
+          const key = threadShellKey(thread);
+          return !splitMemberKeys.has(key) && !filed.has(folderItem.thread(key));
+        })
+      : spaceThreads;
   const routeRowThreadKey =
     routeThreadRef === null
       ? null
@@ -1446,8 +1474,23 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     const bounds = threadListRef.current?.getBoundingClientRect();
     return bounds !== undefined && (point.x < bounds.left || point.x > bounds.right);
   };
+  // A folder's row takes chats dropped on it, so over one the drag stops reordering.
+  const pointerOverFolder = (point: { x: number; y: number }) =>
+    [
+      ...document.querySelectorAll<HTMLElement>(
+        "[data-folder-drop-folder][data-thread-context-drop]",
+      ),
+    ].some((element) => {
+      const rect = element.getBoundingClientRect();
+      return (
+        point.x >= rect.left &&
+        point.x <= rect.right &&
+        point.y >= rect.top &&
+        point.y <= rect.bottom
+      );
+    });
   const moveThreadContextDrag = (point: { x: number; y: number }) => {
-    const contextDrag = pointerOutsideThreadList(point);
+    const contextDrag = pointerOutsideThreadList(point) || pointerOverFolder(point);
     setDragState((current) =>
       current === null || current.contextDrag === contextDrag
         ? current
@@ -1464,7 +1507,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     return true;
   };
   const dropThreadContextDrag = (point: { x: number; y: number }) => {
-    if (!pointerOutsideThreadList(point)) return false;
+    if (!pointerOutsideThreadList(point) && !pointerOverFolder(point)) return false;
     dropThreadContext(point, contextDragThreads());
     return true;
   };
@@ -1700,7 +1743,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   // so a new layout key alone also triggers it.
   const listMotionPass = { layoutKey: listMotionLayoutKey, animate: listMotionAnimate };
   useLayoutEffect(() => {
-    listMotionRef.current?.update(listMotionPass.animate);
+    // A space change slides the whole list sideways; rows don't also move on their own.
+    listMotionRef.current?.update(listMotionPass.animate && !isSwitchingSpace());
   }, [listMotionPass]);
   const handleThreadDragOver = (event: DragOverEvent) => {
     const target = event.over
@@ -2218,6 +2262,18 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     },
   );
 
+  /** The spaces a thread can move to, marking the one it is in. */
+  const threadSpaceChoices = (threadKey: string) => {
+    const spaces = useBrowserModel.getState().browser?.spaces ?? [];
+    const spaceIds = spaces.map((space) => space.id);
+    const current = spaceOfThread(useThreadSpaceStore.getState().spaceOf, threadKey, spaceIds);
+    return spaces.map((space) => ({
+      id: space.id,
+      name: space.name,
+      current: space.id === current,
+    }));
+  };
+
   const handleDraftContextMenu = useStableCallback(
     (draftId: DraftId, position: { x: number; y: number }) => {
       void (async () => {
@@ -2342,11 +2398,28 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                 titleRegeneration: supportsTitleRegeneration,
               },
               snoozePresets,
-            }),
+              spaces: threadSpaceChoices(threadKey),
+            }).flatMap((entry) =>
+              // Folders sit with spaces: both say where the chat lives.
+              ardiaAvailable && entry.id === "rename"
+                ? [moveToFolderMenu(folderItem.thread(threadKey)), entry]
+                : [entry],
+            ),
             position,
           ),
         );
         if (clicked._tag === "Failure" || clicked.value === null) return;
+        if (clicked.value.startsWith("move-folder:")) {
+          const item = folderItem.thread(threadKey);
+          applyMoveToFolder(item, clicked.value, () => useFolderStore.getState().release(item));
+          return;
+        }
+        if (clicked.value.startsWith("move-space:")) {
+          useThreadSpaceStore
+            .getState()
+            .assign(threadKey, clicked.value.slice("move-space:".length));
+          return;
+        }
         if (threadActionRequiresOperate(clicked.value) && !checkThreadOperations([thread])) return;
         if (clicked.value?.startsWith("snooze:")) {
           const preset =
@@ -2607,31 +2680,43 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     updateThreadJumpHintsVisibility(shouldShowJumpHintsNow);
   }, [shouldShowJumpHintsNow, updateThreadJumpHintsVisibility]);
 
-  const handleNewThreadClick = (event?: ReactMouseEvent) => {
-    if (shouldCreateNewThreadInCurrentProject(event?.shiftKey ?? false, projectGroups.length)) {
-      if (isMobile) setOpenMobile(false);
-      void startNewThreadFromContext({
-        activeDraftThread: newThreadContext.activeDraftThread,
-        activeThread: newThreadContext.activeThread ?? undefined,
-        defaultProjectRef: newThreadContext.defaultProjectRef,
-        handleNewThread: newThreadContext.handleNewThread,
-      });
-      return;
-    }
+  // Same as Cmd+T: the New screen, starting in Chat.
+  const handleNewThreadClick = () => {
     if (isMobile) setOpenMobile(false);
-    openCommandPalette({ open: "new-thread-in" });
+    useNewScreenStore.getState().setMode("chat");
+    void startNewThreadFromContext({
+      activeDraftThread: newThreadContext.activeDraftThread,
+      activeThread: newThreadContext.activeThread ?? undefined,
+      defaultProjectRef: newThreadContext.defaultProjectRef,
+      handleNewThread: newThreadContext.handleNewThread,
+    });
   };
 
-  const newThreadShortcutLabel =
-    shortcutLabelForCommand(keybindings, "chat.new") ??
-    (projectGroups.length <= 1 ? shortcutLabelForCommand(keybindings, "chat.newLocal") : undefined);
-  const newThreadInProjectShortcutLabel = shortcutLabelForCommand(keybindings, "chat.newLocal");
+  const folderHandlers = {
+    onNewTab: (folderId: string) => openNewScreen("browse", folderId),
+    onThreadContextMenu: handleThreadContextMenu,
+  };
+
+  const newThreadShortcutLabel = shortcutLabelForCommand(keybindings, "chat.newTab");
   return (
     <>
       <ThreadContextDragGhost />
-      <SidebarChromeHeader isElectron={isElectron} />
+      {ardiaAvailable ? (
+        <>
+          <RomeSidebarChrome isElectron={isElectron} />
+          <RomeSidebarTop
+            onNew={handleNewThreadClick}
+            newShortcutLabel={newThreadShortcutLabel ?? null}
+          />
+          <SpaceDialog />
+          <FolderDragLayer />
+        </>
+      ) : (
+        <SidebarChromeHeader isElectron={isElectron} />
+      )}
       <SidebarContent
         className="min-h-full"
+        {...(ardiaAvailable ? { "data-space-slide": "" } : {})}
         fixedHeader={
           <SidebarGroup className="z-[1]">
             <SidebarThreadHeader
@@ -2762,11 +2847,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                 </Combobox>
               }
               onNewProject={openAddProjectCommandPalette}
-              onNewThread={handleNewThreadClick}
+              onNewThread={ardiaAvailable ? null : handleNewThreadClick}
               newThreadDisabled={projects.length === 0}
               newThreadShortcutLabel={newThreadShortcutLabel}
-              newThreadInProjectShortcutLabel={newThreadInProjectShortcutLabel}
-              showNewThreadInProjectHint={projectGroups.length > 1}
               searchInputRef={threadSearchInputRef}
               searchQuery={threadSearchQuery}
               onSearchQueryChange={(value) => {
@@ -2890,8 +2973,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         const threadKey = scopedThreadKey(
                           scopeThreadRef(thread.environmentId, thread.id),
                         );
+                        // Rome lists every thread as one line, like the tabs around them.
                         const isCard =
-                          section === "active" || section === "pinned" || section === "working";
+                          !ardiaAvailable &&
+                          (section === "active" || section === "pinned" || section === "working");
                         const rowVariant = isCard ? "card" : "slim";
                         return (
                           <SortableThreadRow
@@ -2946,6 +3031,14 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             wokeAt={threadWokeAt(thread, { now: snoozeNow })}
                             isActive={routeRowThreadKey === threadKey}
                             isRouteThread={routeThreadKey === threadKey}
+                            below={
+                              ardiaAvailable && section !== "settled" ? (
+                                <ThreadTabs
+                                  threadKey={threadKey}
+                                  routeThread={routeThreadKey === threadKey}
+                                />
+                              ) : null
+                            }
                             openPullRequestsInRightPanel={routeThreadRef !== null}
                             jumpLabel={
                               showJumpHints ? (jumpLabelByKey.get(threadKey) ?? null) : null
@@ -2994,6 +3087,11 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                       };
                       const from = isContextDrag ? null : (dragState?.activeSection ?? null);
                       const items: ReactNode[] = [
+                        ...(ardiaAvailable
+                          ? [<SpaceFolders key="space-folders" handlers={folderHandlers} />]
+                          : []),
+                        <SplitGroups key="split-groups" />,
+                        ...(ardiaAvailable ? [<SpaceTabs key="space-tabs" />] : []),
                         <SidebarDraftBlock
                           key="draft-sessions"
                           projectByKey={projectByKey}

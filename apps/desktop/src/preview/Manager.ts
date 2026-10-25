@@ -249,7 +249,7 @@ interface PreviewOperationContext {
   readonly artifactPath?: string;
 }
 
-const normalizeCaptureRect = (value: unknown): PreviewAnnotationRect | null => {
+export const normalizeCaptureRect = (value: unknown): PreviewAnnotationRect | null => {
   if (typeof value !== "object" || value === null) return null;
   const rect = value as Record<string, unknown>;
   const x = rect["x"];
@@ -275,7 +275,7 @@ const normalizeCaptureRect = (value: unknown): PreviewAnnotationRect | null => {
 
 // capturePage returns a 1x NativeImage containing device pixels, so crop() uses
 // CSS coordinates scaled by the guest's devicePixelRatio (including page zoom).
-const cropAnnotationScreenshot = (
+export const cropAnnotationScreenshot = (
   image: Electron.NativeImage,
   cropRect: PreviewAnnotationRect | null,
   devicePixelRatio: number,

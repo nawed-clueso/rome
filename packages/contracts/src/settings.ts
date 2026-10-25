@@ -90,6 +90,13 @@ export const SidebarAutoSettleAfterDays = Schema.Number.check(
 );
 export type SidebarAutoSettleAfterDays = typeof SidebarAutoSettleAfterDays.Type;
 const DEFAULT_SIDEBAR_AUTO_SETTLE_AFTER_DAYS: SidebarAutoSettleAfterDays = 3;
+export const MAX_PULL_REQUEST_CHILD_REPOSITORY_DEPTH = 3;
+/** How many folder levels below a project's root to look for further repositories; 0 is off. */
+export const PullRequestChildRepositoryDepth = Schema.Int.check(
+  Schema.isBetween({ minimum: 0, maximum: MAX_PULL_REQUEST_CHILD_REPOSITORY_DEPTH }),
+);
+export type PullRequestChildRepositoryDepth = typeof PullRequestChildRepositoryDepth.Type;
+const DEFAULT_PULL_REQUEST_CHILD_REPOSITORY_DEPTH: PullRequestChildRepositoryDepth = 3;
 export const MIN_GLASS_OPACITY = 40;
 export const MAX_GLASS_OPACITY = 100;
 export const GlassOpacity = Schema.Int.check(
@@ -989,6 +996,7 @@ export const PROJECT_SCOPED_SERVER_SETTING_KEYS = [
   "branchNamePrefix",
   "branchNameInstructions",
   "pullRequestMergeMethod",
+  "pullRequestChildRepositoryDepth",
   "sidebarAutoSettleOnMerge",
   "sidebarAutoSettleAfterDays",
   "sidebarAutoSettleKeepPullRequests",
@@ -1033,6 +1041,7 @@ export const ProjectSettingsOverrides = Schema.Struct({
   branchNamePrefix: Schema.optionalKey(TrimmedString),
   branchNameInstructions: Schema.optionalKey(TrimmedString),
   pullRequestMergeMethod: Schema.optionalKey(Schema.NullOr(PullRequestMergeMethod)),
+  pullRequestChildRepositoryDepth: Schema.optionalKey(PullRequestChildRepositoryDepth),
   sidebarAutoSettleOnMerge: Schema.optionalKey(Schema.Boolean),
   sidebarAutoSettleAfterDays: Schema.optionalKey(Schema.NullOr(SidebarAutoSettleAfterDays)),
   sidebarAutoSettleKeepPullRequests: Schema.optionalKey(Schema.Boolean),
@@ -1288,6 +1297,9 @@ export const ServerSettings = Schema.Struct({
 
   pullRequestMergeMethod: Schema.NullOr(PullRequestMergeMethod).pipe(
     Schema.withDecodingDefault(Effect.succeed(null)),
+  ),
+  pullRequestChildRepositoryDepth: PullRequestChildRepositoryDepth.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_PULL_REQUEST_CHILD_REPOSITORY_DEPTH)),
   ),
 
   // The driver-specific config blob is `Schema.Unknown` at this layer so
@@ -1607,6 +1619,7 @@ export const ServerSettingsPatch = Schema.Struct({
   reviewGuideModelSelection: Schema.optionalKey(Schema.NullOr(ModelSelection)),
   reviewGuideInstructions: Schema.optionalKey(TrimmedString),
   pullRequestMergeMethod: Schema.optionalKey(Schema.NullOr(PullRequestMergeMethod)),
+  pullRequestChildRepositoryDepth: Schema.optionalKey(PullRequestChildRepositoryDepth),
   observability: Schema.optionalKey(
     Schema.Struct({
       otlpTracesUrl: Schema.optionalKey(TrimmedString),

@@ -17,6 +17,7 @@ import {
 
 import { loadRepoEnv } from "../../scripts/lib/public-config";
 import { thirdPartyLicensesPlugin } from "../../scripts/lib/third-party-licenses";
+import { ardiaPlugins } from "./vite/ardia";
 import { tailwindPlugins } from "./vite/tailwind";
 import { warmBundledDevPlugin } from "./vite/warmBundledDev";
 
@@ -211,6 +212,7 @@ export default defineConfig(() => {
               { bundle: "desktop", path: new URL("../desktop/package.json", import.meta.url) },
             ],
           }),
+      ...ardiaPlugins(),
       tanstackRouter({ autoCodeSplitting: true }),
       react({ compiler: true }),
       tailwindPlugins(bundledDev),

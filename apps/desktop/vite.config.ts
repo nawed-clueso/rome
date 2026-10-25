@@ -113,7 +113,10 @@ export default defineConfig({
         // Sandboxed Electron preloads cannot reliably resolve package imports
         // from inside the packaged ASAR. Bundle Clerk's preload bridge into the
         // preload artifact instead of leaving a runtime require() behind.
-        alwaysBundle: (id) => id === "@clerk/electron" || id.startsWith("@clerk/electron/"),
+        alwaysBundle: (id) =>
+          id === "@clerk/electron" ||
+          id.startsWith("@clerk/electron/") ||
+          id.startsWith("electron-chrome-extensions/"),
       },
     },
     {

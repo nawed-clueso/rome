@@ -129,7 +129,7 @@ const makeFileRevisions = (dependencies: FileRevisionsDependencies) => {
     const fetch = Effect.suspend(() => {
       const key = fileRevisionsKey(project, ref);
       return read({
-        cwd: project.project.workspaceRoot,
+        cwd: project.cwd,
         repository: project.repository,
         host: project.host,
         number: ref.number,
@@ -314,7 +314,7 @@ export const make = (dependencies: Dependencies) => {
         const read = project.api.getFilesViewed;
         if (project.api.capabilities.viewedFiles === "host" && read) {
           return read({
-            cwd: project.project.workspaceRoot,
+            cwd: project.cwd,
             repository: project.repository,
             host: project.host,
             number: input.number,
@@ -340,7 +340,7 @@ export const make = (dependencies: Dependencies) => {
         const write = project.api.setFilesViewed;
         if (project.api.capabilities.viewedFiles === "host" && write) {
           return write({
-            cwd: project.project.workspaceRoot,
+            cwd: project.cwd,
             repository: project.repository,
             host: project.host,
             number: input.number,

@@ -1,4 +1,10 @@
 import { useAtomValue } from "@effect/atom-react";
+import { ardiaAvailable, loadArdia } from "../browser/ardia/ardiaHostStore";
+import { SpaceTheme } from "../browser/rome/SpaceTheme";
+import { RomeSidebarChrome } from "./sidebar/rome/RomeSidebarChrome";
+import { SidebarEdgePeek } from "./sidebar/rome/SidebarEdgePeek";
+import { ChromelessWindow, useChromeless } from "../browser/rome/ChromelessWindow";
+import { useSidebarPeekStore } from "../browser/rome/addressBarStore";
 import * as Schema from "effect/Schema";
 import {
   useEffect,
@@ -131,6 +137,11 @@ function SidebarControl() {
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const { toggleSidebar, isMobile, mobileSheetMounted } = useSidebar();
   const isSidebarVisible = useSidebarVisibility();
+  // A page filling the window keeps the toggle out of its way; the edge and the shortcut still work.
+  const chromeless = useChromeless();
+  // The peeking sidebar slides over this control; lift it above so it shows in the
+  // sidebar, as when the sidebar is open, and pins the sidebar when clicked.
+  const peeking = useSidebarPeekStore((state) => state.peeking);
   const environmentIdentificationMode = useEnvironmentIdentificationMode();
   const stageBackdropVariant = useSidebarStageBackdropVariant(
     environmentIdentificationMode === "artwork",
@@ -172,9 +183,19 @@ function SidebarControl() {
     const unsubscribe = window.desktopBridge?.onMenuAction((action) => {
       if (action === "sidebar.toggle") toggleSidebar();
     });
+    // A page in the browser keeps its keys; the browser hands its toggle back here.
+    let stopBrowserToggle: (() => void) | null = null;
+    let stopped = false;
+    if (ardiaAvailable) {
+      void loadArdia().then((module) => {
+        if (!stopped) stopBrowserToggle = module.onSidebarToggle(toggleSidebar);
+      });
+    }
     return () => {
+      stopped = true;
       window.removeEventListener("keydown", onKeyDown, true);
       unsubscribe?.();
+      stopBrowserToggle?.();
     };
   }, [keybindings, toggleSidebar, usagePageOpen]);
 
@@ -183,6 +204,8 @@ function SidebarControl() {
       className={cn(
         "pointer-events-none fixed left-[var(--workspace-controls-left)] top-[var(--workspace-controls-top)] z-50 ml-px flex h-[var(--workspace-topbar-height)] items-center",
         isMobile && mobileSheetMounted && "hidden",
+        chromeless && "hidden",
+        peeking && "z-[57]",
       )}
       data-sidebar-control=""
     >
@@ -407,6 +430,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         <Sidebar
           side="left"
           collapsible="offcanvas"
+          variant={ardiaAvailable ? "inset" : "sidebar"}
           data-app-sidebar=""
           role="navigation"
           aria-label={isOnSettings ? "Settings" : "Threads"}
@@ -423,7 +447,11 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         >
           {isOnSettings ? (
             <>
-              <SidebarChromeHeader isElectron={isElectron} />
+              {ardiaAvailable ? (
+                <RomeSidebarChrome isElectron={isElectron} />
+              ) : (
+                <SidebarChromeHeader isElectron={isElectron} />
+              )}
               <SettingsSidebarNav pathname={pathname} />
             </>
           ) : legacySidebarEnabled ? (
@@ -434,6 +462,9 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
           <SidebarRail onDoubleClick={resetSidebarWidth} />
         </Sidebar>
         {children}
+        {ardiaAvailable ? <SpaceTheme /> : null}
+        <SidebarEdgePeek />
+        <ChromelessWindow />
         <SidebarControl />
         <NavigationHistoryShortcuts />
         {isOnSettings ? null : <ThreadUndoShortcut />}

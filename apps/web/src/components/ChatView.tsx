@@ -152,6 +152,14 @@ import {
   useRightPanelStore,
 } from "../rightPanelStore";
 import { isPreviewSupportedInRuntime, useThreadPreviewState } from "../previewStateStore";
+import { ardiaAvailable } from "../browser/ardia/ardiaHostStore";
+import { RecentTabs } from "../browser/rome/RecentTabs";
+import { SearchField } from "../browser/rome/SearchField";
+import { NewScreenBackground } from "./chat/NewScreenBackground";
+import { ClosePaneButton } from "./split/ClosePaneButton";
+import { useBrowserModel } from "../browser/rome/browserStore";
+import { useThreadSpaceStore } from "../browser/rome/threadSpaceStore";
+import { useNewScreenStore } from "../newScreenStore";
 import { previewRuntimeTabId } from "../browser/previewRuntimeTabId";
 import { ThreadPreviewMiniPlayer } from "./preview/ThreadPreviewMiniPlayer";
 import { usePreviewSession } from "./preview/usePreviewSession";
@@ -376,6 +384,8 @@ type ChatViewProps =
   | {
       environmentId: EnvironmentId;
       threadId: ThreadId;
+      /** Set for a chat opened beside another: closes that pane. */
+      onClosePane?: () => void;
       onDiffPanelOpen?: () => void;
       reserveTitleBarControlInset?: boolean;
       forceExpandedMobileComposer?: boolean;
@@ -385,6 +395,7 @@ type ChatViewProps =
   | {
       environmentId: EnvironmentId;
       threadId: ThreadId;
+      onClosePane?: never;
       onDiffPanelOpen?: () => void;
       reserveTitleBarControlInset?: boolean;
       forceExpandedMobileComposer?: boolean;
@@ -873,6 +884,13 @@ export default function ChatView(props: ChatViewProps) {
   })();
   const activeThreadRef = useActiveThreadRef(activeThread);
   const activeThreadKey = activeThreadRef ? scopedThreadKey(activeThreadRef) : null;
+  // A new chat belongs to the space it was started in, so it follows the space
+  // until its first message is sent.
+  const browserSpaceId = useBrowserModel((state) => state.browser?.spaceId ?? null);
+  useEffect(() => {
+    if (!isLocalDraftThread || !activeThreadKey || !browserSpaceId) return;
+    useThreadSpaceStore.getState().assign(activeThreadKey, browserSpaceId);
+  }, [isLocalDraftThread, activeThreadKey, browserSpaceId]);
   const activeEnvironmentServerBrowser = useEnvironmentSupportsServerBrowser(
     activeThreadRef?.environmentId ?? null,
   );
@@ -1549,6 +1567,28 @@ export default function ChatView(props: ChatViewProps) {
     backgroundSubmissionPending,
     hasWorktreeSetupCard: worktreeSetup !== null,
   });
+  const browsing = useNewScreenStore(
+    (state) => isDraftHeroState && ardiaAvailable && state.mode === "browse",
+  );
+  // Switching between Chat and Search carries what's typed into the other field,
+  // so nothing typed is lost either way.
+  const wasBrowsingRef = useRef(browsing);
+  useEffect(() => {
+    if (wasBrowsingRef.current === browsing) return;
+    wasBrowsingRef.current = browsing;
+    const drafts = useComposerDraftStore.getState();
+    const screen = useNewScreenStore.getState();
+    const prompt = drafts.getComposerDraft(composerDraftTarget)?.prompt ?? "";
+    if (browsing) {
+      if (!prompt.trim()) return;
+      screen.setSearchText(prompt.trim());
+      drafts.setPrompt(composerDraftTarget, "");
+    } else {
+      if (!screen.searchText.trim() || prompt.trim()) return;
+      drafts.setPrompt(composerDraftTarget, screen.searchText.trim());
+      screen.setSearchText("");
+    }
+  }, [browsing, composerDraftTarget]);
   const {
     transitionGroupRef: draftHeroTransitionGroupRef,
     composerAnchorRef: draftHeroComposerAnchorRef,
@@ -2395,8 +2435,8 @@ export default function ChatView(props: ChatViewProps) {
     addPullRequestsSurfaceStable,
     closePreviewPanelStable,
     copyRightPanelFilePathStable,
-    createBrowserSurface,
     createBrowserSurfaceStable,
+    addBrowser,
     moveRightPanelSurfaceStable,
     onOpenTurnDiffStable,
     openChangesFromThreadPanelStable,
@@ -3143,6 +3183,7 @@ export default function ChatView(props: ChatViewProps) {
       animationsActive={panelAnimationsActive}
       maximized={rightPanelMaximized}
       onToggleMaximized={toggleRightPanelMaximizedStable}
+      trailing={props.onClosePane ? <ClosePaneButton onClose={props.onClosePane} /> : null}
     >
       {panelToggleControls}
     </WorkspaceTitlebarControls>
@@ -3191,7 +3232,7 @@ export default function ChatView(props: ChatViewProps) {
           {isElectron && rightPanelControlsAtRoot ? (
             <span
               aria-hidden
-              className="pointer-events-none fixed top-[var(--workspace-controls-top)] right-[var(--workspace-controls-right)] h-[var(--workspace-topbar-height)] w-28 [-webkit-app-region:no-drag]"
+              className="pointer-events-none fixed top-[var(--workspace-controls-top)] right-[var(--workspace-controls-right)] h-[var(--workspace-topbar-height)] w-28 [-webkit-app-region:no-drag] [html[data-rome]_&]:absolute [html[data-rome]_&]:top-0"
             />
           ) : null}
           {!rightPanelControlsAtRoot && !rightPanelControlsInPanel ? panelLayoutControls : null}
@@ -3407,6 +3448,7 @@ export default function ChatView(props: ChatViewProps) {
                   : "pointer-events-none absolute inset-x-0 bottom-0 z-20 pt-1.5 sm:pt-2"
               }
             >
+              {isDraftHeroState ? <NewScreenBackground /> : null}
               <div ref={draftHeroTransitionGroupRef} className="chat-composer-lane w-full">
                 <div
                   data-chat-composer-stack="true"
@@ -3426,6 +3468,7 @@ export default function ChatView(props: ChatViewProps) {
                           draftId={draftId}
                           activeProjectRef={activeProjectRef}
                           activeProjectTitle={activeProject?.title ?? null}
+                          browseAvailable={ardiaAvailable}
                         />
                       </div>
                     </div>
@@ -3439,7 +3482,29 @@ export default function ChatView(props: ChatViewProps) {
                         : undefined
                     }
                   >
+                    {browsing ? (
+                      // Laid over the composer's place, which stays reserved, so switching
+                      // modes or suggestions opening never moves anything on the screen.
+                      <div className="absolute inset-x-0 top-0 z-30 mx-auto flex w-full max-w-(--chat-content-max-width) flex-col gap-8">
+                        <SearchField
+                          autoFocus
+                          onAskChat={(text) => {
+                            // The text goes in below, so the mode switch has nothing to carry.
+                            useNewScreenStore.getState().setSearchText("");
+                            useNewScreenStore.getState().setMode("chat");
+                            requestAnimationFrame(() => {
+                              composerRef.current?.insertTextAtEnd(text);
+                              composerRef.current?.focusAtEnd();
+                            });
+                          }}
+                        />
+                        <RecentTabs />
+                      </div>
+                    ) : null}
                     <ComposerSurface.Shell
+                      aria-hidden={browsing || undefined}
+                      inert={browsing}
+                      className={browsing ? "invisible" : undefined}
                       contextStrip={showComposerContextStrip || showComposerModelStrip}
                     >
                       <ComposerSurface.Host
@@ -3864,7 +3929,7 @@ export default function ChatView(props: ChatViewProps) {
           onCloseAllSurfaces={closeAllRightPanelSurfacesStable}
           onMoveSurface={moveRightPanelSurfaceStable}
           onCopyFilePath={copyRightPanelFilePathStable}
-          onAddBrowser={() => createBrowserSurface()}
+          onAddBrowser={addBrowser}
           onAddBrowserInProfile={createBrowserSurfaceStable}
           onAddTerminal={addTerminalSurfaceStable}
           onAddDiff={addDiffSurfaceStable}

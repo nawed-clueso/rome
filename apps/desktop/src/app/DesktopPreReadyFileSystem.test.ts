@@ -8,10 +8,11 @@ import * as FileSystem from "effect/FileSystem";
 import * as DesktopPreReadyFileSystem from "./DesktopPreReadyFileSystem.ts";
 import * as DesktopUserData from "./DesktopUserData.ts";
 
-const resolveWindowsUserData = (appDataDirectory: string) =>
+// Development still looks for its legacy profile, so it reads the folder at startup.
+const resolveUserData = (appDataDirectory: string) =>
   DesktopUserData.resolveUserDataPath({
     appDataDirectory,
-    isDevelopment: false,
+    isDevelopment: true,
     platform: "win32",
   }).pipe(Effect.provide(DesktopPreReadyFileSystem.layer));
 
@@ -25,7 +26,7 @@ it.layer(NodeServices.layer)("DesktopPreReadyFileSystem", (it) => {
         yield* fileSystem.chmod(root, 0o000);
         yield* Effect.addFinalizer(() => fileSystem.chmod(root, 0o700).pipe(Effect.orDie));
 
-        const exit = yield* Effect.exit(resolveWindowsUserData(root));
+        const exit = yield* Effect.exit(resolveUserData(root));
 
         assert.isTrue(Exit.isFailure(exit));
       }),

@@ -101,6 +101,11 @@ const LATE_DEFAULT_KEYBINDINGS: ReadonlyArray<{
   readonly rule: KeybindingRule;
 }> = [
   {
+    id: "sidebar.toggle:mod+s",
+    alongside: { key: "mod+b", command: "sidebar.toggle" },
+    rule: { key: "mod+s", command: "sidebar.toggle" },
+  },
+  {
     id: "composer.sendBackground:mod+enter",
     alongside: {
       key: "mod+alt+enter",
@@ -112,6 +117,26 @@ const LATE_DEFAULT_KEYBINDINGS: ReadonlyArray<{
       command: "composer.sendBackground",
       when: "composerFocus && draftThreadRoute",
     },
+  },
+];
+
+/** Stock rules that moved to another shortcut; swapped only while still unchanged. */
+const MOVED_DEFAULT_KEYBINDINGS: ReadonlyArray<{
+  readonly id: string;
+  readonly from: KeybindingRule;
+  readonly to: KeybindingRule;
+}> = [
+  {
+    // Cmd+T became the New screen (chat.newTab), shared with the browser's new tab.
+    id: "rightPanel.new:mod+t->mod+alt+t",
+    from: { key: "mod+t", command: "rightPanel.new", when: "rightPanelOpen && !terminalFocus" },
+    to: { key: "mod+alt+t", command: "rightPanel.new", when: "rightPanelOpen && !terminalFocus" },
+  },
+  {
+    // Cmd+S toggles the sidebar, as in other browsers with one.
+    id: "composer.stash:mod+s->mod+alt+s",
+    from: { key: "mod+s", command: "composer.stash", when: "!terminalFocus" },
+    to: { key: "mod+alt+s", command: "composer.stash", when: "!terminalFocus" },
   },
 ];
 
@@ -464,13 +489,17 @@ const make = Effect.gen(function* () {
       const pendingLateDefaults = LATE_DEFAULT_KEYBINDINGS.filter(
         (late) => !appliedMigrationIds.has(late.id),
       );
+      const pendingMoves = MOVED_DEFAULT_KEYBINDINGS.filter(
+        (move) => !appliedMigrationIds.has(move.id),
+      );
       const configExists = yield* readConfigExists;
       if (!configExists) {
         yield* writeConfigAtomically(DEFAULT_KEYBINDINGS);
-        if (pendingLateDefaults.length > 0) {
+        if (pendingLateDefaults.length > 0 || pendingMoves.length > 0) {
           yield* recordAppliedMigrations([
             ...appliedMigrationIds,
             ...LATE_DEFAULT_KEYBINDINGS.map((late) => late.id),
+            ...MOVED_DEFAULT_KEYBINDINGS.map((move) => move.id),
           ]);
         }
         yield* Cache.invalidate(resolvedConfigCache, resolvedConfigCacheKey);
@@ -489,7 +518,12 @@ const make = Effect.gen(function* () {
         yield* Cache.invalidate(resolvedConfigCache, resolvedConfigCacheKey);
         return;
       }
-      const customConfig = runtimeConfig.keybindings;
+      const customConfig = runtimeConfig.keybindings.map(
+        (entry) => pendingMoves.find((move) => isSameKeybindingRule(entry, move.from))?.to ?? entry,
+      );
+      const movedAny = customConfig.some(
+        (entry, index) => entry !== runtimeConfig.keybindings[index],
+      );
       const existingCommands = new Set(customConfig.map((entry) => entry.command));
       const missingDefaults: KeybindingRule[] = [];
       const shortcutConflictWarnings: Array<{
@@ -560,16 +594,17 @@ const make = Effect.gen(function* () {
           commands: skippedDefaults.map((rule) => rule.command),
         });
       }
-      if (defaultsToAppend.length > 0) {
+      if (defaultsToAppend.length > 0 || movedAny) {
         yield* writeConfigAtomically([...defaultsToAppend, ...customConfig]);
       }
       const settledLateDefaults = pendingLateDefaults.filter(
         (late) => !skippedDefaults.includes(late.rule),
       );
-      if (settledLateDefaults.length > 0) {
+      if (settledLateDefaults.length > 0 || pendingMoves.length > 0) {
         yield* recordAppliedMigrations([
           ...appliedMigrationIds,
           ...settledLateDefaults.map((late) => late.id),
+          ...pendingMoves.map((move) => move.id),
         ]);
       }
       yield* Cache.invalidate(resolvedConfigCache, resolvedConfigCacheKey);

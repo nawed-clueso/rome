@@ -250,6 +250,50 @@ export const SETTINGS_SEARCH_ITEMS = [
     to: "/settings/appearance",
   },
   {
+    id: "address-bar",
+    title: "Address bar",
+    to: "/settings/appearance",
+    searchTerms: ["url toolbar browser sidebar arc navigation back forward reload"],
+  },
+  {
+    id: "new-screen-background",
+    title: "New screen background",
+    to: "/settings/appearance",
+    searchTerms: [
+      "aurora dawn silk gradient spotlight topography glow light grain backdrop wallpaper",
+    ],
+  },
+  {
+    id: "new-screen-background-color",
+    title: "Background colour",
+    to: "/settings/appearance",
+    searchTerms: ["new screen color tint hue space accent"],
+  },
+  {
+    id: "new-screen-background-opacity",
+    title: "Background opacity",
+    to: "/settings/appearance",
+    searchTerms: ["new screen strength intensity subtle bold transparency"],
+  },
+  {
+    id: "new-screen-background-intensity",
+    title: "Background intensity",
+    to: "/settings/appearance",
+    searchTerms: ["new screen spotlight dots brightness glow pointer lit reach"],
+  },
+  {
+    id: "new-screen-background-grain",
+    title: "Background grain",
+    to: "/settings/appearance",
+    searchTerms: ["new screen noise film texture grainy"],
+  },
+  {
+    id: "new-screen-background-blur",
+    title: "Background blur",
+    to: "/settings/appearance",
+    searchTerms: ["new screen pattern soften haze frosted"],
+  },
+  {
     id: "environment-identification",
     title: "Environment identification",
     to: "/settings/appearance",
@@ -773,7 +817,7 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "pull-request-links-open-in-app",
-    title: "Open pull requests in T3 Code",
+    title: "Open pull requests in Rome",
     to: "/settings/integrations",
     searchTerms: ["pr links github browser external click default pull request view panel"],
   },
@@ -803,6 +847,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     to: "/settings/source-control",
     scope: "project-defaults",
     searchTerms: ["pull request merge squash rebase last selected"],
+  },
+  {
+    id: "pull-request-child-repository-depth",
+    title: "Pull requests from child folders",
+    to: "/settings/source-control",
+    scope: "project-defaults",
+    searchTerms: ["nested repositories subfolders worktrees monorepo depth levels scan"],
   },
   {
     id: "source-control",

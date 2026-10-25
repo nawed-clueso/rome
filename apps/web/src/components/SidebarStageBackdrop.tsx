@@ -1,4 +1,5 @@
 import { useAtomValue } from "@effect/atom-react";
+import { ardiaAvailable } from "../browser/ardia/ardiaHostStore";
 import { useId } from "react";
 
 import { APP_STAGE_LABEL } from "../branding";
@@ -41,7 +42,8 @@ export function useEnvironmentStageLabel(): string {
 }
 
 export function useSidebarStageBackdropVariant(enabled = true): SidebarStageBackdropVariant | null {
-  return resolveSidebarStageBackdropVariant(useEnvironmentStageLabel(), enabled);
+  // Rome's themes carry their own look, so the build-stage artwork stays off.
+  return resolveSidebarStageBackdropVariant(useEnvironmentStageLabel(), enabled && !ardiaAvailable);
 }
 
 export function SidebarStageBackdrop({ variant }: { variant: SidebarStageBackdropVariant }) {

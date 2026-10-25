@@ -41,7 +41,8 @@ export const resolveUserDataPath = Effect.fn("desktop.userData.resolveUserDataPa
     const path = yield* Path.Path;
     const names = input.isDevelopment
       ? { current: "t3code-dev", legacy: "T3 Code (Dev)" }
-      : { current: "t3code-v2", legacy: "T3 Code (Alpha)" };
+      : // Rome's own profile, apart from T3 Code's t3code-v2.
+        { current: "rome", legacy: "rome" };
     const destinationPath = path.join(input.appDataDirectory, names.current);
     const legacyPath = path.join(input.appDataDirectory, names.legacy);
     const inspect = (resourcePath: string) =>
@@ -55,43 +56,8 @@ export const resolveUserDataPath = Effect.fn("desktop.userData.resolveUserDataPa
     if (input.isDevelopment) {
       return (yield* inspect(legacyPath)) ? legacyPath : destinationPath;
     }
-    // Chromium databases require their own profile for each running version.
-    if (input.platform !== "win32") return destinationPath;
-    const destinationState = path.join(destinationPath, "Local State");
-    if (yield* inspect(destinationState)) return destinationPath;
-    const legacyState = path.join(legacyPath, "Local State");
-    const sourceState = (yield* inspect(legacyState))
-      ? legacyState
-      : path.join(input.appDataDirectory, "t3code", "Local State");
-    if (!(yield* inspect(sourceState))) return destinationPath;
-    // Windows safeStorage keys live here. Copy only these preferences, never locked databases.
-    const state = yield* fs
-      .readFileString(sourceState)
-      .pipe(
-        Effect.mapError((cause) =>
-          DesktopUserDataInitializationError.fromFileSystem(cause, "read", sourceState),
-        ),
-      );
-    yield* fs
-      .makeDirectory(destinationPath, { recursive: true })
-      .pipe(
-        Effect.mapError((cause) =>
-          DesktopUserDataInitializationError.fromFileSystem(
-            cause,
-            "create-directory",
-            destinationPath,
-          ),
-        ),
-      );
-    yield* fs.writeFileString(destinationState, state, { flag: "wx" }).pipe(
-      Effect.catchIf(
-        (error) => error.reason._tag === "AlreadyExists",
-        () => Effect.void,
-      ),
-      Effect.mapError((cause) =>
-        DesktopUserDataInitializationError.fromFileSystem(cause, "write", destinationState),
-      ),
-    );
+    // Rome keeps its own profile on every platform; it takes nothing from T3 Code's,
+    // not even Windows credential keys.
     return destinationPath;
   },
 );

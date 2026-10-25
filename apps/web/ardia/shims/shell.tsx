@@ -1,0 +1,139 @@
+import type {
+  AppEvent,
+  CommandEvent,
+  ConfirmOptions,
+  InlineWrite,
+  PromptOptions,
+  SystemInfo,
+  WindowEvent,
+} from "@ardia-real/shell";
+import { unstable_batchedUpdates } from "react-dom";
+import { emitNativeEvent, provideNativeModule } from "./expo-modules-core";
+import { NATIVE_CHANGE } from "./react-native";
+import { askConfirm, askText } from "./web/dialogs";
+
+export * from "@ardia-real/shell";
+export { Symbol } from "./web/Symbol";
+export { ActivitySpinner } from "./web/motion/ActivitySpinner";
+export {
+  ContextMenuArea,
+  DockSelection,
+  GlassEffect,
+  OutsidePressArea,
+  Surface,
+  VisualEffect,
+  WindowDragRegion,
+} from "./web/chrome";
+export { FadeLabel } from "./web/FadeLabel";
+export { MouseArea } from "./web/MouseArea";
+export { showMenu } from "./web/menus";
+export { setTrafficLightsCenter } from "./web/windowChrome";
+
+const SYSTEM_INFO: SystemInfo = {
+  appName: "Rome",
+  appVersion: "t3code",
+  appBuild: "web",
+  bundleId: "dev.ardia.t3code",
+  configuration: "Release",
+  osVersion: "web",
+  osBuild: "web",
+  arch: "web",
+  model: "web",
+  memoryGB: 8,
+  locale: typeof navigator === "undefined" ? "en-US" : navigator.language,
+  updates: false,
+};
+
+provideNativeModule("ArdiaApp", { launchEnvironment: () => null, systemInfo: () => SYSTEM_INFO });
+provideNativeModule("ArdiaCalendar", { authorizationStatus: () => "notDetermined" });
+
+// session.json and friends. The renderer's localStorage is per app profile, so the
+// browser state is shared by every thread and survives restarts.
+const DOCUMENT_PREFIX = "ardia:document:";
+const storage = typeof localStorage === "undefined" ? null : localStorage;
+export const readDocument = (name: string) => storage?.getItem(DOCUMENT_PREFIX + name) ?? null;
+export const writeDocument = (name: string, contents: string) => {
+  try {
+    storage?.setItem(DOCUMENT_PREFIX + name, contents);
+  } catch (error) {
+    console.warn(`[ardia] could not save ${name}`, error);
+  }
+};
+export const fetchBangList = (
+  _etag: string | null,
+): Promise<{
+  status: number;
+  etag: string | null;
+  contentType: string | null;
+  body: string | null;
+  bytes: number;
+}> | null => null;
+export const saveDocument = async (name: string, contents: string) => writeDocument(name, contents);
+export const removeDocument = (name: string) => storage?.removeItem(DOCUMENT_PREFIX + name);
+
+export function copyText(text: string) {
+  void navigator.clipboard?.writeText(text).catch(() => {});
+}
+
+export const confirm = async (options: ConfirmOptions) => ({
+  confirmed: await askConfirm(options.title, options.message, options.confirmTitle),
+  suppressed: false,
+});
+
+export const prompt = async (options: PromptOptions) =>
+  askText(options.title, options.message, options.value ?? "");
+
+const darkQuery =
+  typeof window === "undefined" ? null : window.matchMedia("(prefers-color-scheme: dark)");
+export const isDarkAppearance = async () => !!darkQuery?.matches;
+let appearance: "auto" | "light" | "dark" = "auto";
+export const setAppearance = async (mode: "auto" | "light" | "dark") => {
+  if (mode === appearance) return;
+  appearance = mode;
+  emitAppEvent({
+    type: "appearance",
+    dark: mode === "auto" ? !!darkQuery?.matches : mode === "dark",
+  });
+};
+darkQuery?.addEventListener(
+  "change",
+  (e) => appearance === "auto" && emitAppEvent({ type: "appearance", dark: e.matches }),
+);
+
+export const windowIds = async () => [] as string[];
+export const windowFrame = async (_id: string): Promise<[number, number, number, number] | null> =>
+  null;
+export const systemInfo = () => SYSTEM_INFO;
+export const launchEnvironment = (_name: string) => null;
+
+const valueSetter =
+  typeof window === "undefined"
+    ? undefined
+    : Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+
+export async function completeInline(
+  tag: number,
+  typed: string,
+  completion: string,
+): Promise<InlineWrite> {
+  const field = tag as unknown as
+    | (HTMLInputElement & {
+        [NATIVE_CHANGE]?: (text: string, selection: { start: number; end: number }) => void;
+      })
+    | null;
+  if (!(field instanceof HTMLInputElement) || !valueSetter) return 0;
+  if (field.value !== typed || document.activeElement !== field) return 2;
+  const full = typed + completion;
+  valueSetter.call(field, full);
+  field.setSelectionRange(typed.length, full.length);
+  unstable_batchedUpdates(() =>
+    field[NATIVE_CHANGE]?.(full, { start: typed.length, end: full.length }),
+  );
+  return 1;
+}
+
+export const emitCommand = (event: CommandEvent) =>
+  emitNativeEvent("ArdiaShell", "onCommand", event);
+export const emitWindowEvent = (event: WindowEvent) =>
+  emitNativeEvent("ArdiaShell", "onWindowEvent", event);
+export const emitAppEvent = (event: AppEvent) => emitNativeEvent("ArdiaShell", "onAppEvent", event);

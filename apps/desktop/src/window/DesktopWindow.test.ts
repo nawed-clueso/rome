@@ -24,6 +24,7 @@ vi.mock("electron", async (importOriginal) => ({
       setUserAgent: vi.fn(),
     })),
   },
+  ipcMain: { on: vi.fn(), handle: vi.fn() },
   screen: {
     getAllDisplays: vi.fn(() => [
       {

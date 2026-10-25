@@ -322,6 +322,8 @@ export const PullRequestListEntry = Schema.Struct({
   projectId: ProjectId,
   projectTitle: TrimmedNonEmptyString,
   repository: TrimmedNonEmptyString,
+  /** Where the repository sits under the project's root, when it was found in a child folder. */
+  repositoryPath: Schema.optional(TrimmedNonEmptyString),
   number: PositiveInt,
   title: TrimmedNonEmptyString,
   url: TrimmedNonEmptyString,

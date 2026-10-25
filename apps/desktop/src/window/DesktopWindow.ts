@@ -26,6 +26,7 @@ import {
   TRACKPAD_SCROLL_END_CHANNEL,
   WINDOW_FULLSCREEN_STATE_CHANNEL,
 } from "../ipc/channels.ts";
+import * as ArdiaGuests from "../ardia/ArdiaGuests.ts";
 import { PASSKEY_BRIDGE_ARGUMENT } from "../preview/GuestProtocol.ts";
 import * as PreviewManager from "../preview/Manager.ts";
 import * as PreviewPasskeys from "../preview/Passkeys.ts";
@@ -510,20 +511,30 @@ export const make = Effect.gen(function* () {
       yield* electronWindow.destroyAll;
       return Option.none();
     }
+    ArdiaGuests.installArdiaIpc();
     window.webContents.on("will-attach-webview", (event, webPreferences, params) => {
-      if (
-        typeof params.partition !== "string" ||
-        !previewManager.isBrowserPartition(params.partition)
-      ) {
+      const partition = typeof params.partition === "string" ? params.partition : null;
+      const ardia = partition !== null && ArdiaGuests.isArdiaPartition(partition);
+      if (partition === null || (!ardia && !previewManager.isBrowserPartition(partition))) {
         event.preventDefault();
         return;
       }
+      if (ardia) ArdiaGuests.noteArdiaPartition(partition);
       webPreferences.sandbox = true;
       webPreferences.nodeIntegration = false;
       webPreferences.nodeIntegrationInSubFrames = false;
-      webPreferences.contextIsolation = false;
+      // The preview picker needs isolation off. Browser tabs keep it on, and load the
+      // same annotation overlay so a chat can pick from them too.
+      webPreferences.contextIsolation = ardia;
+      if (ardia) {
+        webPreferences.preload = `${__dirname}/preview-pick-preload.cjs`;
+        webPreferences.additionalArguments = [
+          ...(webPreferences.additionalArguments ?? []),
+          ArdiaGuests.SIGN_IN_PERSONA,
+        ];
+      }
       webPreferences.disableHtmlFullscreenWindowResize = true;
-      if (previewPasskeys.bridgeEnabled) {
+      if (previewPasskeys.bridgeEnabled && !ardia) {
         webPreferences.additionalArguments = [
           ...(webPreferences.additionalArguments ?? []),
           PASSKEY_BRIDGE_ARGUMENT,
@@ -610,6 +621,10 @@ export const make = Effect.gen(function* () {
     installContextMenu(window, window.webContents);
     window.webContents.on("did-attach-webview", (_event, contents) => {
       installContextMenu(window, contents);
+      if (ArdiaGuests.isArdiaGuest(contents)) {
+        ArdiaGuests.prepareArdiaGuest(window.webContents, contents);
+        return;
+      }
       void runPromise(previewManager.prepareWebview(contents));
     });
 

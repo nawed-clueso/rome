@@ -1,0 +1,106 @@
+/* Adapted from Ardia's apps/demo/src/styles.css (Apache-2.0, see LICENSE.Apache-2.0). */
+
+.ardia-window {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Inter, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+.ardia-window input:focus,
+.ardia-window textarea:focus,
+.ardia-window [tabindex]:focus {
+  outline: none;
+}
+
+.ardia-window > div:first-child {
+  flex: 1;
+  display: flex;
+}
+
+.ardia-menu {
+  position: fixed;
+  z-index: 10000;
+  padding: 5px;
+  border-radius: 10px;
+  background: rgba(246, 246, 246, 0.78);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  box-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.18),
+    0 10px 30px rgba(0, 0, 0, 0.2);
+  font-size: 13px;
+  color: #1d1d1f;
+  user-select: none;
+}
+
+.ardia-menu-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px 0 4px;
+  border-radius: 5px;
+  cursor: default;
+}
+
+.ardia-menu-item:hover:not(.disabled) {
+  background: #0a63e0;
+  color: #fff;
+}
+
+.ardia-menu-item.disabled {
+  color: rgba(0, 0, 0, 0.3);
+}
+
+.ardia-menu-check {
+  width: 14px;
+  font-size: 11px;
+}
+
+.ardia-menu-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  margin-right: 7px;
+}
+
+.ardia-menu-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ardia-menu-key {
+  margin-left: 16px;
+  opacity: 0.55;
+  font-size: 12px;
+}
+
+.ardia-menu-separator {
+  height: 1px;
+  margin: 5px 8px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.ardia-menu.dark {
+  background: rgba(40, 40, 40, 0.78);
+  color: #ffffff;
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.16),
+    0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.ardia-menu.dark .ardia-menu-item.disabled {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.ardia-menu.dark .ardia-menu-separator {
+  background: rgba(255, 255, 255, 0.12);
+}

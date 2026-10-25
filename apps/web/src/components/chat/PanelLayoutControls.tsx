@@ -183,10 +183,12 @@ export function WorkspaceTitlebarControls(props: {
   readonly maximized: boolean;
   readonly onToggleMaximized: () => void;
   readonly children: ReactNode;
+  /** After the panel toggles: closes a chat opened beside another. */
+  readonly trailing?: ReactNode;
 }) {
   return (
     <div
-      className="pointer-events-none fixed top-[var(--workspace-controls-top)] right-[var(--workspace-controls-right)] z-50 mr-px flex h-[var(--workspace-topbar-height)] items-center gap-1 [-webkit-app-region:no-drag]"
+      className="pointer-events-none fixed top-[var(--workspace-controls-top)] right-[var(--workspace-controls-right)] z-50 mr-px flex h-[var(--workspace-topbar-height)] items-center gap-1 [-webkit-app-region:no-drag] [html[data-rome]_&]:absolute [html[data-rome]_&]:top-0"
       data-workspace-titlebar-controls
     >
       {props.showMaximizeControl ? (
@@ -209,6 +211,9 @@ export function WorkspaceTitlebarControls(props: {
         </span>
       ) : null}
       <div className="pointer-events-auto flex h-full items-center">{props.children}</div>
+      {props.trailing ? (
+        <div className="pointer-events-auto flex h-full items-center">{props.trailing}</div>
+      ) : null}
     </div>
   );
 }

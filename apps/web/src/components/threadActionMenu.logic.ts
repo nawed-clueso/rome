@@ -15,6 +15,9 @@ export type ThreadActionMenuId =
   | "snooze"
   | `snooze:${string}`
   | "unsnooze"
+  | "move-space"
+  | `move-space:${string}`
+  | `move-folder:${string}`
   | "rename"
   | "regenerate-title"
   | "mark-unread"
@@ -86,19 +89,29 @@ export interface ThreadActionMenuState {
     readonly titleRegeneration: boolean;
   };
   readonly snoozePresets: ReadonlyArray<SnoozePreset>;
+  /** The browser's spaces, when there is more than one to move the thread between. */
+  readonly spaces?: ReadonlyArray<{
+    readonly id: string;
+    readonly name: string;
+    readonly current: boolean;
+  }>;
 }
 
 /** Local navigation, read markers, and copying remain available to read-only clients. */
 export function threadActionRequiresOperate(action: ThreadActionMenuId): boolean {
-  return ![
-    "new-thread-on-branch",
-    "project-settings",
-    "mark-unread",
-    "copy",
-    "copy-path",
-    "copy-branch",
-    "copy-thread-id",
-  ].includes(action);
+  return (
+    ![
+      "new-thread-on-branch",
+      "project-settings",
+      "mark-unread",
+      "copy",
+      "copy-path",
+      "copy-branch",
+      "copy-thread-id",
+    ].includes(action) &&
+    !action.startsWith("move-space") &&
+    !action.startsWith("move-folder")
+  );
 }
 
 export function buildThreadActionMenuItems(
@@ -145,6 +158,20 @@ export function buildThreadActionMenuItems(
                   { id: "snooze:custom" as const, label: "Custom…", separatorBefore: true },
                 ],
               },
+        ]
+      : []),
+    ...(state.spaces && state.spaces.length > 1
+      ? [
+          {
+            id: "move-space" as const,
+            label: "Move to space",
+            icon: "folder",
+            children: state.spaces.map((space) => ({
+              id: `move-space:${space.id}` as const,
+              label: space.name,
+              checked: space.current,
+            })),
+          },
         ]
       : []),
     { id: "rename", label: "Rename thread", icon: "pencil", separatorBefore: true },

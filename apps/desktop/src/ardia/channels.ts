@@ -1,0 +1,12 @@
+export const ARDIA_OPEN_WINDOW_CHANNEL = "desktop:ardia-open-window";
+export const ARDIA_SHORTCUT_CHANNEL = "desktop:ardia-shortcut";
+export const ARDIA_SET_SHORTCUTS_CHANNEL = "desktop:ardia-set-shortcuts";
+export const ARDIA_DIA_CHANNEL = "desktop:ardia-dia";
+export const ARDIA_SUGGEST_CHANNEL = "desktop:ardia-suggest";
+export const ARDIA_EXTENSION_TAB_CHANNEL = "desktop:ardia-extension-tab";
+export const ARDIA_TAB_SHOWN_CHANNEL = "desktop:ardia-tab-shown";
+export const ARDIA_PICK_CHANNEL = "desktop:ardia-pick-element";
+export const ARDIA_CANCEL_PICK_CHANNEL = "desktop:ardia-cancel-pick";
+export const ARDIA_SNAPSHOT_CHANNEL = "desktop:ardia-snapshot";
+export const ARDIA_AUDIBLE_CHANNEL = "desktop:ardia-audible";
+export const ARDIA_WINDOW_CONTROLS_CHANNEL = "desktop:ardia-window-controls";

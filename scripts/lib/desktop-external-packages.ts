@@ -16,6 +16,10 @@ export const DESKTOP_RUNTIME_EXTERNAL_PREFIXES = [
   // at runtime and ships the browser driver alongside; there is nothing to
   // gain from inlining a 10 MB file the code re-reads as text.
   "playwright-core",
+  // Chrome extension support: both load preload scripts from their own package
+  // folders at runtime, so they stay whole packages beside the bundle.
+  "electron-chrome-extensions",
+  "electron-chrome-web-store",
 ] as const;
 
 export function isDesktopRuntimeExternalDependency(id: string): boolean {

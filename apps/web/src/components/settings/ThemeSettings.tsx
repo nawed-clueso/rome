@@ -29,6 +29,21 @@ import {
   OCEAN_THEME,
 } from "../../themePalette";
 import {
+  MATTE_THEME,
+  PAPER_THEME,
+  MIDNIGHT_THEME,
+  SPACES_THEME,
+  ARCTIC_THEME,
+  ROSE_THEME,
+  SOLAR_THEME,
+  NEON_THEME,
+  MOCHA_THEME,
+  HARVEST_THEME,
+  NIGHTSHADE_THEME,
+  FOREST_THEME,
+  WAVE_THEME,
+} from "@t3tools/shared/themePalettes";
+import {
   AlertDialog,
   AlertDialogClose,
   AlertDialogDescription,
@@ -60,6 +75,20 @@ const MAINTAINER_THEMES: ReadonlyArray<ThemeDefinition> = [
   OCEAN_THEME,
   EMBER_THEME,
   IRIS_THEME,
+  // Rome's own.
+  MATTE_THEME,
+  PAPER_THEME,
+  MIDNIGHT_THEME,
+  SPACES_THEME,
+  ARCTIC_THEME,
+  ROSE_THEME,
+  SOLAR_THEME,
+  NEON_THEME,
+  MOCHA_THEME,
+  HARVEST_THEME,
+  NIGHTSHADE_THEME,
+  FOREST_THEME,
+  WAVE_THEME,
 ];
 
 function collectionVariantLabels(themes: ReadonlyArray<ThemeDefinition>): ReadonlyArray<string> {

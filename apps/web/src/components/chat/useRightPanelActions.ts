@@ -1,4 +1,5 @@
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
+import { ardiaAvailable } from "../../browser/ardia/ardiaHostStore";
 import type { Dispatch } from "react";
 import type { ThreadPreviewState } from "../../previewStateStore";
 import { formatFilePathForClipboard } from "@t3tools/client-runtime/media-actions";
@@ -124,6 +125,12 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
     });
   };
   const createBrowserSurfaceStable = useStableCallback(createBrowserSurface);
+  const openArdiaSurface = () => {
+    if (!activeThreadRef) return;
+    useRightPanelStore.getState().open(activeThreadRef, "ardia");
+  };
+  /** The panel's Browser action: the shared Ardia browser where it can run. */
+  const addBrowser = () => (ardiaAvailable ? openArdiaSurface() : createBrowserSurface());
   const addDiffSurface = () => {
     if (!activeThreadRef || !isServerThread || !isGitRepo) return;
     useDiffPanelStore.getState().selectGitScope(activeThreadRef, "branch");
@@ -318,6 +325,7 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
     copyRightPanelFilePathStable,
     createBrowserSurface,
     createBrowserSurfaceStable,
+    addBrowser,
     moveRightPanelSurfaceStable,
     onOpenTurnDiffStable,
     onToggleDiffStable,

@@ -59,6 +59,7 @@ function resolveEarlyDesktopSettingsPath(input: {
     homeDirectory: input.homeDirectory,
     joinPath: input.joinPath,
     t3Home,
+    isDevelopment: isDevelopmentEnvironment(input.env),
   });
   const stateDir = resolveDesktopStateDir({
     baseDir,
@@ -151,7 +152,7 @@ export function resolveEarlyLinuxElectronOptions(
   const isDevelopment = isDevelopmentEnvironment(input.env);
   return {
     isDevelopment,
-    linuxWmClass: isDevelopment ? "t3code-dev" : "t3code",
+    linuxWmClass: isDevelopment ? "t3code-dev" : "rome",
     linuxDesktopEntryName: resolveLinuxDesktopEntryName(isDevelopment),
     passwordStore: resolveLinuxPasswordStoreSwitch({
       preference,

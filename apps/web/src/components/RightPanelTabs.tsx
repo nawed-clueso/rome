@@ -33,10 +33,12 @@ import {
   FileDiff,
   Files,
   Globe2,
+  MessageSquare,
   Plus,
   TerminalSquare,
 } from "lucide-react";
 import { Volume2, VolumeOff } from "lucide";
+import { openChatBeside } from "./split/ChatBesidePicker";
 import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
@@ -74,6 +76,8 @@ import { useBrowserDefaults } from "~/browser/browserDefaults";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { PanelTabCloseButton } from "~/components/ui/panel-tab-close-button";
 import { faviconUrlForOrigin } from "~/lib/favicon";
+import { useArdiaHostStore } from "~/browser/ardia/ardiaHostStore";
+import type { ArdiaActivePage } from "@t3-ardia/entry";
 import { useTheme } from "~/hooks/useTheme";
 import { useDeviceState } from "~/state/device";
 import type { PreviewPanelInlineSize } from "~/hooks/usePreviewPanelInlineSize";
@@ -163,7 +167,7 @@ function shouldOpenDefaultBrowserProfileFromMenuClick(pointerType: string | unde
 }
 
 const SURFACE_DISABLED_REASONS = {
-  browser: "Browser previews are only available in the T3 Code desktop app.",
+  browser: "Browser previews are only available in the Rome desktop app.",
   terminal: "Terminal surfaces are only available from a project thread.",
   files: "Files are only available when a project is open.",
   diff: "Diff is only available for server threads in Git repositories.",
@@ -333,6 +337,14 @@ function RightPanelEmptyState(props: {
       available: props.browserAvailable,
       disabledReason: SURFACE_UNAVAILABLE_HINTS.browser,
       onClick: props.onAddBrowser,
+    },
+    {
+      label: "Chat",
+      icon: MessageSquare,
+      shortcut: "C",
+      available: true,
+      disabledReason: "",
+      onClick: openChatBeside,
     },
     {
       label: "Terminal",
@@ -546,6 +558,7 @@ function surfaceTitle(
   surface: RightPanelSurface,
   sessions: Readonly<Record<string, PreviewSessionSnapshot>>,
   terminalLabelsById: ReadonlyMap<string, string>,
+  ardiaPage: ArdiaActivePage | null,
 ): string {
   switch (surface.kind) {
     case "diff":
@@ -565,18 +578,25 @@ function surfaceTitle(
       return `#${surface.number}`;
     case "pull-requests":
       return "Pull requests";
+    case "ardia":
+      return pageTitle(ardiaPage?.title ?? "", ardiaPage?.url ?? null);
     case "device":
       return surface.title ?? surface.target?.name ?? "Device";
     case "preview": {
       const snapshot = surface.resourceId ? sessions[surface.resourceId] : null;
       if (!snapshot || snapshot.navStatus._tag === "Idle") return "Browser";
-      if (snapshot.navStatus.title.trim().length > 0) return snapshot.navStatus.title;
-      try {
-        return new URL(snapshot.navStatus.url).host || "Browser";
-      } catch {
-        return "Browser";
-      }
+      return pageTitle(snapshot.navStatus.title, snapshot.navStatus.url);
     }
+  }
+}
+
+function pageTitle(title: string, url: string | null): string {
+  if (title.trim().length > 0) return title;
+  if (!url) return "Browser";
+  try {
+    return new URL(url).host || "Browser";
+  } catch {
+    return "Browser";
   }
 }
 
@@ -603,7 +623,11 @@ function previewFaviconOf(
   surface: RightPanelSurface,
   sessions: Readonly<Record<string, PreviewSessionSnapshot>>,
   desktopByTabId: Readonly<Record<string, DesktopPreviewOverlay>>,
+  ardiaPage: ArdiaActivePage | null,
 ): { url: string | null; capturedUrl: string | null } {
+  if (surface.kind === "ardia") {
+    return { url: ardiaPage?.url ?? null, capturedUrl: ardiaPage?.favicon ?? null };
+  }
   const snapshot =
     surface.kind === "preview" && surface.resourceId ? sessions[surface.resourceId] : null;
   const url = !snapshot || snapshot.navStatus._tag === "Idle" ? null : snapshot.navStatus.url;
@@ -655,6 +679,8 @@ function SurfaceIcon({
       );
     case "pull-requests":
       return <PullRequestGlyph.link className="size-3 shrink-0" />;
+    case "ardia":
+      return <PreviewFavicon capturedUrl={previewCapturedUrl} url={previewUrl} />;
     case "device":
       return surface.target?.platform === "ios" ? (
         <AppleIcon className="size-3 shrink-0" />
@@ -962,6 +988,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
   const ownsDesktopTitleBar = isElectron && props.mode === "inline";
   const browserProfiles = useBrowserDefaults().profiles;
   const { resolvedTheme } = useTheme();
+  const ardiaPage = useArdiaHostStore((state) => state.activePage);
   const tabListRef = useRef<HTMLDivElement>(null);
   const addSurfaceTriggerRef = useRef<HTMLButtonElement>(null);
   const [renamingDevice, setRenamingDevice] = useState<string | null>(null);
@@ -1035,6 +1062,14 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
       available: props.browserAvailable,
       disabledReason: SURFACE_DISABLED_REASONS.browser,
       onClick: props.onAddBrowser,
+    },
+    {
+      label: "Chat",
+      icon: MessageSquare,
+      shortcut: "C",
+      available: true,
+      disabledReason: "",
+      onClick: openChatBeside,
     },
     {
       label: "Terminal",
@@ -1281,6 +1316,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
                   surface,
                   props.previewSessions,
                   props.desktopByTabId,
+                  ardiaPage,
                 );
                 return (
                   <RightPanelTab
@@ -1289,7 +1325,12 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
                     dragDisabled={!props.onMoveSurface || renamingDevice === surface.id}
                     active={surface.id === props.activeSurfaceId}
                     pending={props.pendingSurfaceIds.has(surface.id)}
-                    title={surfaceTitle(surface, props.previewSessions, props.terminalLabelsById)}
+                    title={surfaceTitle(
+                      surface,
+                      props.previewSessions,
+                      props.terminalLabelsById,
+                      ardiaPage,
+                    )}
                     audio={tabAudioState(
                       previewTabId ? (props.desktopByTabId[previewTabId] ?? null) : null,
                     )}

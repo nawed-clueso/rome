@@ -7,6 +7,8 @@ import ChatView from "./ChatView";
 import { resolveDraftPromotionNavigationTarget, threadHasStarted } from "./ChatView.logic";
 import { waitForDraftHeroTransition } from "./chat/draftHeroTransition";
 import { SidebarInset } from "./ui/sidebar";
+import { SplitLayout } from "./split/SplitLayout";
+import { splitGroupOf, useSplitViewStore } from "../splitViewStore";
 import {
   finalizePromotedDraftThreadByRef,
   markPromotedDraftThreadByRef,
@@ -31,6 +33,10 @@ import {
  */
 export function ThreadRouteView({ target }: { target: ThreadRouteTarget }) {
   const navigate = useNavigate();
+  // A chat in a split opens with the rest of its split around it.
+  const splitGroup = useSplitViewStore((state) =>
+    target.kind === "server" ? splitGroupOf(state.groups, scopedThreadKey(target.threadRef)) : null,
+  );
   const draftId = target.kind === "draft" ? target.draftId : null;
   const draftSession = useComposerDraftStore((store) =>
     draftId === null ? null : store.getDraftSession(draftId),
@@ -188,6 +194,7 @@ export function ThreadRouteView({ target }: { target: ThreadRouteTarget }) {
     );
   }
 
+  if (splitGroup && view !== null) return <SplitLayout group={splitGroup} />;
   return (
     <SidebarInset className="h-svh min-h-0 overflow-hidden overscroll-y-none md:h-dvh">
       {view}

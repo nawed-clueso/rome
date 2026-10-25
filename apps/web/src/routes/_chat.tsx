@@ -1,7 +1,7 @@
 import { AuthPreviewOperateScope } from "@t3tools/contracts";
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import { useAtomValue } from "@effect/atom-react";
-import { useEffect } from "react";
+import { useEffect, useEffectEvent } from "react";
 
 import { isCommandPaletteOpen } from "../commandPaletteBus";
 import { ThreadRouteView } from "../components/ThreadRouteView";
@@ -29,6 +29,13 @@ import { useThreadSelectionStore } from "../threadSelectionStore";
 import { stackedThreadToast, toastManager } from "~/components/ui/toast";
 import { primaryServerKeybindingsAtom } from "~/state/server";
 import { useThreadRouteTarget } from "../hooks/useThreadRouteTarget";
+import { CloseViewShortcut } from "../browser/rome/CloseViewShortcut";
+import { BrowserEvents } from "../browser/ardia/BrowserEvents";
+import { ardiaAvailable } from "../browser/ardia/ardiaHostStore";
+import { ThreadTabsLifecycle } from "../browser/rome/ThreadTabsLifecycle";
+import { SplitPanes } from "../components/split/SplitPanes";
+import { scopedThreadKey } from "@t3tools/client-runtime/environment";
+import { registerNewScreenOpener, useNewScreenStore, type NewScreenMode } from "../newScreenStore";
 
 function ChatRouteGlobalShortcuts() {
   const clearSelection = useThreadSelectionStore((state) => state.clearSelection);
@@ -63,6 +70,21 @@ function ChatRouteGlobalShortcuts() {
     routeThreadRef
       ? selectActiveRightPanel(state.byThreadKey, routeThreadRef) === "preview"
       : false,
+  );
+  /** T3 Code's new chat and the browser's new tab are the same New screen. */
+  const openNewScreen = (mode: NewScreenMode, folderId: string | null = null) => {
+    useNewScreenStore.getState().setMode(mode, folderId);
+    void startNewThreadFromContext({
+      activeDraftThread,
+      activeThread: activeThread ?? undefined,
+      defaultProjectRef,
+      handleNewThread,
+    });
+  };
+  const openNewScreenFromKey = useEffectEvent(openNewScreen);
+  useEffect(
+    () => registerNewScreenOpener((mode, folderId) => openNewScreenFromKey(mode, folderId)),
+    [],
   );
   useEffect(() => {
     const onWindowKeyDown = (event: KeyboardEvent) => {
@@ -111,6 +133,13 @@ function ChatRouteGlobalShortcuts() {
         return;
       }
 
+      if (command === "chat.newTab") {
+        event.preventDefault();
+        event.stopPropagation();
+        openNewScreenFromKey("chat");
+        return;
+      }
+
       if (command === "chat.new") {
         event.preventDefault();
         event.stopPropagation();
@@ -136,7 +165,7 @@ function ChatRouteGlobalShortcuts() {
             stackedThreadToast({
               type: "info",
               title: "Preview is desktop-only",
-              description: "Open T3 Code in the desktop app to use the in-app preview.",
+              description: "Open Rome in the desktop app to use the in-app preview.",
             }),
           );
           return;
@@ -192,7 +221,13 @@ function ChatRouteGlobalShortcuts() {
     terminalOpen,
   ]);
 
-  return null;
+  return (
+    <>
+      <BrowserEvents onNewTab={() => openNewScreen("chat")} />
+      <CloseViewShortcut />
+      {ardiaAvailable ? <ThreadTabsLifecycle /> : null}
+    </>
+  );
 }
 
 function ChatRouteLayout() {
@@ -206,6 +241,11 @@ function ChatRouteLayout() {
         <ThreadLinkPrompt threadRef={threadTarget.threadRef} />
       ) : null}
       {threadTarget ? <ThreadRouteView target={threadTarget} /> : <Outlet />}
+      <SplitPanes
+        primaryThreadKey={
+          threadTarget?.kind === "server" ? scopedThreadKey(threadTarget.threadRef) : null
+        }
+      />
     </>
   );
 }

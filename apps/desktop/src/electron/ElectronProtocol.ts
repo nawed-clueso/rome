@@ -13,7 +13,8 @@ import * as Scope from "effect/Scope";
 import * as Electron from "electron";
 
 export const DESKTOP_HOST = "app";
-const DESKTOP_PRODUCTION_SCHEME = "t3code";
+// Rome's own scheme, so its pages and links never resolve to T3 Code.
+const DESKTOP_PRODUCTION_SCHEME = "rome";
 const DESKTOP_DEVELOPMENT_SCHEME = "t3code-dev";
 
 export function getDesktopScheme(isDevelopment: boolean): string {
@@ -89,7 +90,8 @@ function makeDesktopContentSecurityPolicy(input: DesktopProtocolRegistrationInpu
     "default-src 'self'",
     `script-src ${scriptSources.join(" ")}`,
     `connect-src ${connectSources.join(" ")}`,
-    `img-src 'self' ${input.scheme}: blob: data: http: https:`,
+    // crx: serves the browser's extension icons to its toolbar.
+    `img-src 'self' ${input.scheme}: crx: blob: data: http: https:`,
     `media-src 'self' ${input.scheme}: blob: http: https:`,
     "style-src 'self' 'unsafe-inline'",
     `font-src 'self' ${input.scheme}: data:`,

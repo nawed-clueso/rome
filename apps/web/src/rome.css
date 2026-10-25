@@ -1,0 +1,161 @@
+/* Rome's themes pair fonts (set by browser/rome/SpaceTheme as data-rome-type);
+   a font the user picks in Appearance still wins, as an inline style. */
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+@import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/fraunces";
+@import "@fontsource/instrument-serif";
+@import "@fontsource/space-mono";
+
+@font-face {
+  font-family: "Departure Mono";
+  src: url("./assets/fonts/departure-mono/DepartureMono-Regular.woff2") format("woff2");
+  font-display: swap;
+}
+
+html[data-rome-type="matte"] {
+  --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-display: "Inter Variable", -apple-system, system-ui, sans-serif;
+  --font-label: "Departure Mono", ui-monospace, monospace;
+  --font-mono: "JetBrains Mono Variable", "SF Mono", Menlo, monospace;
+  --display-tracking: -0.035em;
+}
+
+html[data-rome-type="paper"] {
+  --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-display: "Instrument Serif", Georgia, serif;
+  --font-label: "Space Mono", ui-monospace, monospace;
+  --font-mono: "JetBrains Mono Variable", "SF Mono", Menlo, monospace;
+  --display-tracking: -0.01em;
+}
+
+html[data-rome-type="midnight"] {
+  --font-sans: "Geist Variable", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-display: "Geist Variable", -apple-system, system-ui, sans-serif;
+  --font-label: "Geist Mono Variable", ui-monospace, monospace;
+  --font-mono: "Geist Mono Variable", "SF Mono", Menlo, monospace;
+  --display-tracking: -0.04em;
+}
+
+html[data-rome-type="spaces"] {
+  --font-sans: "Space Grotesk Variable", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-display: "Fraunces Variable", Georgia, serif;
+  --font-label: "Space Mono", ui-monospace, monospace;
+  --font-mono: "JetBrains Mono Variable", "SF Mono", Menlo, monospace;
+  --display-tracking: -0.02em;
+}
+
+/* Headlines and small labels follow the theme's pairing. */
+.font-display {
+  font-family: var(--font-display, var(--font-sans));
+  letter-spacing: var(--display-tracking, -0.02em);
+}
+
+.font-label {
+  font-family: var(--font-label, var(--font-mono));
+}
+
+/* Rome's window: the content sits on a card over the frame. With the Spaces theme
+   the current space tints the frame (data-space-tint); otherwise the frame is the
+   theme's own sidebar colour. Set by browser/rome/SpaceTheme. */
+
+html[data-rome] [data-slot="sidebar-wrapper"] {
+  background: var(--sidebar);
+}
+
+html[data-rome][data-space-tint] [data-slot="sidebar-wrapper"] {
+  background: radial-gradient(
+    120% 80% at 0% 0%,
+    color-mix(in oklab, var(--space-tint-from) 62%, var(--background)) 0%,
+    color-mix(in oklab, var(--space-tint-to) 42%, var(--background)) 100%
+  );
+}
+
+html[data-rome] [data-slot="sidebar-inner"] {
+  background: transparent;
+}
+
+html[data-rome] [data-slot="sidebar-container"] {
+  padding: 0;
+}
+
+html[data-rome] [data-slot="sidebar-inset"] {
+  /* The card starts 9px down (its margin and border); a header 18px shorter keeps
+     its title and buttons on the same line as the window controls. */
+  --workspace-topbar-height: 34px;
+  height: calc(100dvh - 1rem) !important;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+/* The sidebar sliding in over the content while it is hidden (SidebarEdgePeek). */
+[data-slot="sidebar"][data-peek="true"] [data-slot="sidebar-container"] {
+  left: 0 !important;
+  z-index: 56;
+  transition: left 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Frosted glass, as Arc's peeking sidebar: what's under it shows through, blurred. */
+[data-slot="sidebar"][data-peek="true"] [data-slot="sidebar-inner"] {
+  margin: 6px 0 6px 6px;
+  height: calc(100% - 12px);
+  border-radius: 12px;
+  border: 1px solid color-mix(in oklab, var(--foreground) 10%, transparent);
+  background: color-mix(in oklab, var(--sidebar) 70%, transparent);
+  backdrop-filter: blur(28px) saturate(1.7);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, white 12%, transparent),
+    0 12px 40px rgb(0 0 0 / 0.22),
+    0 2px 6px rgb(0 0 0 / 0.08);
+  overflow: hidden;
+}
+
+html[data-rome][data-space-tint]
+  [data-slot="sidebar"][data-peek="true"]
+  [data-slot="sidebar-inner"] {
+  background: radial-gradient(
+    120% 80% at 0% 0%,
+    color-mix(
+        in oklab,
+        color-mix(in oklab, var(--space-tint-from) 62%, var(--background)) 72%,
+        transparent
+      )
+      0%,
+    color-mix(
+        in oklab,
+        color-mix(in oklab, var(--space-tint-to) 42%, var(--background)) 72%,
+        transparent
+      )
+      100%
+  );
+}
+
+/* An open split: the inset is only the grid's frame; each chat is its own card. */
+html[data-rome] [data-slot="sidebar-inset"][data-split] {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+html[data-rome] .rome-pane {
+  --workspace-topbar-height: 34px;
+}
+
+/* Extension buttons in a page's header. */
+.rome-extension-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.rome-extension-actions::part(action) {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background-color: transparent;
+}
+.rome-extension-actions::part(action):hover {
+  background-color: color-mix(in oklab, var(--foreground) 8%, transparent);
+}

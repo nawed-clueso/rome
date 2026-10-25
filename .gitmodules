@@ -1,0 +1,3 @@
+[submodule "vendor/ardia"]
+	path = vendor/ardia
+	url = https://github.com/mantrakp04/ardia.git

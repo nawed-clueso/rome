@@ -5,6 +5,8 @@ import { subscribeComposerDraftModelReconciliation } from "./composerDraftStore"
 import { environmentThreadShells } from "./state/threads";
 import { environmentShell } from "./state/shell";
 
+import { ArdiaHost } from "./browser/ardia/ArdiaHost";
+import { ardiaAvailable } from "./browser/ardia/ardiaHostStore";
 import { BrowserProfileReporter } from "./browser/BrowserProfileReporter";
 import { ElectronBrowserHost } from "./browser/ElectronBrowserHost";
 import { QuitHoldOverlay } from "./components/QuitHoldOverlay";
@@ -31,6 +33,7 @@ export function AppRoot({ router }: { readonly router: AppRouter }) {
     <AppAtomRegistryProvider>
       <RouterProvider router={router} />
       <ElectronBrowserHost />
+      {ardiaAvailable ? <ArdiaHost /> : null}
       <BrowserProfileReporter />
       <QuitHoldOverlay />
     </AppAtomRegistryProvider>

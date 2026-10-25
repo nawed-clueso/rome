@@ -2,6 +2,8 @@ import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 import { type RefObject, useEffect, useEffectEvent, useSyncExternalStore } from "react";
 
 export const THREAD_CONTEXT_DROP_EVENT = "t3-thread-context-drop";
+/** A browser tab dropped on a target; its detail is the tab's id. */
+export const TAB_DROP_EVENT = "rome-tab-drop";
 
 export function useThreadContextDrop(
   targetRef: RefObject<EventTarget | null>,
@@ -37,6 +39,8 @@ export interface ThreadContextDragGhost {
   readonly y: number;
   readonly title: string;
   readonly count: number;
+  /** Set when a browser tab is dragged rather than chats. */
+  readonly tabId?: string;
 }
 
 let ghost: ThreadContextDragGhost | null = null;
@@ -46,6 +50,11 @@ function setGhost(next: ThreadContextDragGhost | null) {
   if (ghost === next) return;
   ghost = next;
   for (const listener of listeners) listener();
+}
+
+/** Where the pointer is during a thread drag, read outside React. */
+export function currentThreadContextDragGhost(): ThreadContextDragGhost | null {
+  return ghost;
 }
 
 export function useThreadContextDragGhost(): ThreadContextDragGhost | null {
@@ -71,7 +80,7 @@ function findDropTarget(point: { x: number; y: number }): HTMLElement | null {
 
 export function moveThreadContextDrag(
   point: { x: number; y: number },
-  label: { title: string; count: number },
+  label: { title: string; count: number; tabId?: string },
 ) {
   const target = findDropTarget(point);
   if (target !== overTarget) {
@@ -95,6 +104,14 @@ export function dropThreadContext(
   const target = findDropTarget(point);
   if (!target || threads.length === 0) return false;
   target.dispatchEvent(new CustomEvent(THREAD_CONTEXT_DROP_EVENT, { detail: threads }));
+  return true;
+}
+
+/** Drops a dragged browser tab on whatever takes drops under `point`. */
+export function dropTab(point: { x: number; y: number }, tabId: string): boolean {
+  const target = findDropTarget(point);
+  if (!target) return false;
+  target.dispatchEvent(new CustomEvent(TAB_DROP_EVENT, { detail: tabId }));
   return true;
 }
 

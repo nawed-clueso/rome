@@ -9,7 +9,9 @@ import type {
 } from "@t3tools/contracts";
 import { exposeClerkBridge } from "@clerk/electron/preload";
 import { contextBridge, ipcRenderer, webFrame, webUtils } from "electron";
+import { injectBrowserAction } from "electron-chrome-extensions/browser-action";
 
+import * as ArdiaChannels from "./ardia/channels.ts";
 import * as IpcChannels from "./ipc/channels.ts";
 import { mergeLegacyLocalStorage } from "./legacyLocalStorageMerge.ts";
 
@@ -442,3 +444,39 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     },
   },
 } satisfies DesktopBridge);
+
+const subscribeArdia = (channel: string, listener: (payload: unknown) => void) => {
+  const wrapped = (_event: Electron.IpcRendererEvent, payload: unknown) => {
+    if (typeof payload === "object" && payload !== null) listener(payload);
+  };
+  ipcRenderer.on(channel, wrapped);
+  return () => void ipcRenderer.removeListener(channel, wrapped);
+};
+
+contextBridge.exposeInMainWorld("ardiaDesktop", {
+  setShortcuts: (table: unknown) =>
+    ipcRenderer.send(ArdiaChannels.ARDIA_SET_SHORTCUTS_CHANNEL, table),
+  onOpenWindow: (listener: (request: unknown) => void) =>
+    subscribeArdia(ArdiaChannels.ARDIA_OPEN_WINDOW_CHANNEL, listener),
+  onShortcut: (listener: (input: unknown) => void) =>
+    subscribeArdia(ArdiaChannels.ARDIA_SHORTCUT_CHANNEL, listener),
+  dia: (operation: string) => ipcRenderer.invoke(ArdiaChannels.ARDIA_DIA_CHANNEL, operation),
+  suggest: (url: string) => ipcRenderer.invoke(ArdiaChannels.ARDIA_SUGGEST_CHANNEL, url),
+  onExtensionTab: (listener: (request: unknown) => void) =>
+    subscribeArdia(ArdiaChannels.ARDIA_EXTENSION_TAB_CHANNEL, listener),
+  tabShown: (webContentsId: number) =>
+    ipcRenderer.send(ArdiaChannels.ARDIA_TAB_SHOWN_CHANNEL, webContentsId),
+  setWindowControlsVisible: (visible: boolean) =>
+    ipcRenderer.send(ArdiaChannels.ARDIA_WINDOW_CONTROLS_CHANNEL, visible),
+  onAudible: (listener: (event: unknown) => void) =>
+    subscribeArdia(ArdiaChannels.ARDIA_AUDIBLE_CHANNEL, listener),
+  pickElement: (webContentsId: number, theme: unknown) =>
+    ipcRenderer.invoke(ArdiaChannels.ARDIA_PICK_CHANNEL, webContentsId, theme),
+  cancelPick: (webContentsId: number) =>
+    ipcRenderer.send(ArdiaChannels.ARDIA_CANCEL_PICK_CHANNEL, webContentsId),
+  snapshot: (webContentsId: number) =>
+    ipcRenderer.invoke(ArdiaChannels.ARDIA_SNAPSHOT_CHANNEL, webContentsId),
+});
+
+// The <browser-action-list> element: extension buttons and their popups.
+injectBrowserAction();

@@ -74,7 +74,7 @@ const checkForUpdatesFromMenu = Effect.gen(function* () {
     yield* electronDialog.showMessageBox({
       type: "info",
       title: "You're up to date!",
-      message: `T3 Code ${updateState.currentVersion} is currently the newest version available.`,
+      message: `Rome ${updateState.currentVersion} is currently the newest version available.`,
       buttons: ["OK"],
     });
   } else if (updateState.status === "error") {
@@ -158,6 +158,9 @@ export const make = Effect.gen(function* () {
     const zoomClick = (direction: DesktopWindow.MainWindowZoomDirection) => () => {
       runMenuEffect(`zoom-${direction}`, zoomMainWindow(direction));
     };
+    const closeViewClick = () => {
+      runMenuEffect("close-view", dispatchMenuAction("rome.close-view"));
+    };
     const mainContentsClick = (command: DesktopWindow.MainWindowContentsCommand) => () => {
       runMenuEffect(command, runMainContentsCommand(command));
     };
@@ -204,7 +207,16 @@ export const make = Effect.gen(function* () {
                 },
                 { type: "separator" as const },
               ]),
-          { role: environment.platform === "darwin" ? "close" : "quit" },
+          // Cmd+W closes what's in front (a tab, or the chat, back to the last
+          // view), never the window; the app decides what that is.
+          {
+            label: "Close Tab",
+            accelerator: "CmdOrCtrl+W",
+            click: closeViewClick,
+          },
+          ...(environment.platform === "darwin"
+            ? [{ role: "close" as const, label: "Close Window", accelerator: "CmdOrCtrl+Shift+W" }]
+            : [{ role: "quit" as const }]),
         ],
       },
       {
@@ -298,7 +310,15 @@ export const make = Effect.gen(function* () {
           { role: "togglefullscreen" },
         ],
       },
-      { role: "windowMenu" },
+      // The standard Window menu, without its Close item, which would take Cmd+W back.
+      {
+        label: "Window",
+        role: "window",
+        submenu:
+          environment.platform === "darwin"
+            ? [{ role: "minimize" }, { role: "zoom" }, { type: "separator" }, { role: "front" }]
+            : [{ role: "minimize" }],
+      },
       {
         role: "help",
         submenu: [

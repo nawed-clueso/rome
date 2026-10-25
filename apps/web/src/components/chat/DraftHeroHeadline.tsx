@@ -3,7 +3,7 @@ import { composerDraftHasUserContent, useComposerDraftStore } from "~/composerDr
 import { resolveEnvironmentMachineKind, type ScopedProjectRef } from "@t3tools/contracts";
 import { scopedProjectKey, scopeProjectRef } from "@t3tools/client-runtime/environment";
 import { isScratchProject } from "@t3tools/client-runtime/state/projects";
-import { FolderPlusIcon } from "lucide-react";
+import { FolderPlusIcon, GlobeIcon, MessageSquareIcon } from "lucide-react";
 import { useAtomValue } from "@effect/atom-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -40,6 +40,8 @@ import {
 } from "../ui/combobox";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { InlineButton } from "../ui/button";
+import { Toggle, ToggleGroup } from "../ui/toggle-group";
+import { useNewScreenStore } from "~/newScreenStore";
 import { DraftProjectName } from "./DraftProjectName";
 import { DraftHeroProjectHeading } from "./DraftHeroProjectHeading";
 import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
@@ -55,13 +57,19 @@ interface DraftHeroHeadlineProps {
   readonly draftId: DraftId | null;
   readonly activeProjectRef: ScopedProjectRef | null;
   readonly activeProjectTitle: string | null;
+  /** Switches the window to the full-size browser; null where it can't run. */
+  /** Offers the Chat / Browse switch; only the desktop app can browse. */
+  readonly browseAvailable: boolean;
 }
 
 export function DraftHeroHeadline({
   draftId,
   activeProjectRef,
   activeProjectTitle,
+  browseAvailable,
 }: DraftHeroHeadlineProps) {
+  const mode = useNewScreenStore((state) => (browseAvailable ? state.mode : "chat"));
+  const setMode = useNewScreenStore((state) => state.setMode);
   const projects = useProjects();
   const threads = useThreadShells();
   const { environments } = useEnvironments();
@@ -340,14 +348,47 @@ export function DraftHeroHeadline({
       </Tooltip>
     ) : null;
 
+  const modeSwitch = browseAvailable ? (
+    <ToggleGroup
+      aria-label="Start a chat or search the web"
+      className="pointer-events-auto mb-5"
+      value={[mode]}
+      onValueChange={(next) => {
+        const value = next[0];
+        if (value === "chat" || value === "browse") setMode(value);
+      }}
+    >
+      <Toggle value="chat" className="gap-1.5 px-3">
+        <MessageSquareIcon className="size-3.5" />
+        Chat
+      </Toggle>
+      <Toggle value="browse" className="gap-1.5 px-3">
+        <GlobeIcon className="size-3.5" />
+        Search
+      </Toggle>
+    </ToggleGroup>
+  ) : null;
+
+  if (mode === "browse") {
+    return (
+      <div className="mx-auto flex w-full max-w-5xl flex-col items-center">
+        {modeSwitch}
+        <h1 className="font-display w-full text-center font-normal text-2xl text-foreground tracking-tight sm:text-3xl">
+          Where to?
+        </h1>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col items-center">
+      {modeSwitch}
       {hasResolvedProject && !isScratchDraft ? (
         <DraftHeroProjectHeading projectName={activeProjectDisplayName ?? "Choose a project"}>
           {projectSelector}
         </DraftHeroProjectHeading>
       ) : (
-        <h1 className="w-full text-center font-normal text-2xl text-foreground tracking-tight sm:text-3xl">
+        <h1 className="font-display w-full text-center font-normal text-2xl text-foreground tracking-tight sm:text-3xl">
           {isScratchDraft ? (
             <>What should we work on?</>
           ) : canChooseProject ? (

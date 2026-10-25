@@ -509,6 +509,8 @@ const dropVerbBadge: Record<SidebarDropVerb, ReactNode> = {
 
 type SidebarThreadRowProps = {
   thread: SidebarThreadSummary;
+  /** Shown under the row, inside its list item: the thread's browser tabs. */
+  below?: ReactNode;
   variant: "card" | "slim";
   variantAction: SidebarSweepAction;
   settlementSupported: boolean;
@@ -978,7 +980,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                 "truncate group-focus-within/sidebar-row:text-foreground group-hover/sidebar-row:text-foreground",
                 shouldRecede
                   ? "text-secondary-label/70"
-                  : props.isActive || isWoke || status === "input"
+                  : props.isActive || isWoke || status === "input" || variantAction === "settle"
                     ? "text-foreground"
                     : isUnread
                       ? "text-muted-foreground"
@@ -1226,6 +1228,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
           </TooltipTrigger>
           {detailsTooltip}
         </Tooltip>
+        {props.below}
       </li>
     );
   }
@@ -1489,6 +1492,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
         </TooltipTrigger>
         {detailsTooltip}
       </Tooltip>
+      {props.below}
     </li>
   );
 });

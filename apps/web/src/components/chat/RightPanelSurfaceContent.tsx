@@ -10,9 +10,14 @@ import type {
 } from "@t3tools/contracts";
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { lazy, Suspense } from "react";
+import { ArdiaSurface } from "../../browser/ardia/ArdiaSurface";
 import type { ComposerImageAttachment, DraftId } from "../../composerDraftStore";
 import type { ShortcutMatchContext } from "../../keybindings";
-import { type RightPanelSurface, useRightPanelStore } from "../../rightPanelStore";
+import {
+  PULL_REQUESTS_PANEL_REF,
+  type RightPanelSurface,
+  useRightPanelStore,
+} from "../../rightPanelStore";
 import {
   PersistentThreadTerminalPanel,
   type PersistentThreadTerminalPanelProps,
@@ -122,7 +127,7 @@ export function RightPanelSurfaceContent(props: {
         return (
           <PullRequestsUnavailableState
             title="Pull requests unavailable"
-            error="Update this environment's T3 Code server to browse pull requests."
+            error="Update this environment's Rome server to browse pull requests."
           />
         );
       }
@@ -167,6 +172,17 @@ export function RightPanelSurfaceContent(props: {
     }
     case "pull-requests":
       return <ThreadPullRequestsPanel threadRef={threadRef} />;
+    case "ardia":
+      return (
+        <ArdiaSurface
+          visible={visible}
+          owner={
+            scopedThreadKey(threadRef) === scopedThreadKey(PULL_REQUESTS_PANEL_REF)
+              ? null
+              : scopedThreadKey(threadRef)
+          }
+        />
+      );
     case "device":
       return (
         <Suspense fallback={null}>

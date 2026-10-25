@@ -29,6 +29,7 @@ import * as ProjectService from "../project/ProjectService.ts";
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
 import * as PullRequestFilesViewed from "../persistence/PullRequestFilesViewed.ts";
 import * as RepositoryIdentityResolver from "../project/RepositoryIdentityResolver.ts";
+import * as ChildRepositoryScanner from "../project/ChildRepositoryScanner.ts";
 import * as SourceControlProviderRegistry from "../sourceControl/SourceControlProviderRegistry.ts";
 import * as SourceControlRateLimit from "@t3tools/source-control-core/server/SourceControlRateLimit";
 import * as GitLabCli from "@t3tools/source-control-gitlab/server/GitLabCli";
@@ -235,6 +236,7 @@ function makeService(input: {
   readonly providers: ReadonlyArray<PullRequestProviderApi>;
   readonly resolveHandle?: SourceControlProviderRegistry.SourceControlProviderRegistry["Service"]["resolveHandle"];
   readonly resolveRepositoryIdentity?: RepositoryIdentityResolver.RepositoryIdentityResolver["Service"]["resolve"];
+  readonly discoverChildRepositories?: ChildRepositoryScanner.ChildRepositoryScanner["Service"]["discover"];
 }) {
   // Built into the test's own scope rather than provided call by call: the marks store owns a
   // database, and `Effect.provide` would close it the moment the service was handed back.
@@ -263,6 +265,9 @@ function makeService(input: {
         }),
         Layer.mock(RepositoryIdentityResolver.RepositoryIdentityResolver)({
           resolve: input.resolveRepositoryIdentity ?? (() => Effect.succeed(null)),
+        }),
+        Layer.mock(ChildRepositoryScanner.ChildRepositoryScanner)({
+          discover: input.discoverChildRepositories ?? (() => Effect.succeed([])),
         }),
         SourceControlRateLimit.layer,
         PullRequestFilesViewed.layer.pipe(Layer.provide(SqlitePersistence.layerMemory)),
@@ -3915,5 +3920,218 @@ it.effect("expands only files the change request changes, across every slice of 
     assert.strictEqual(outside._tag, "PullRequestOperationError");
     assert.strictEqual(halfRename._tag, "PullRequestOperationError");
     assert.deepStrictEqual(read, ["src/old.ts->src/new.ts", "gone.md->gone.md"]);
+  }),
+);
+
+const childIdentity = (repository: string, rootPath: string) => ({
+  ...project({ id: "_", title: "_", workspaceRoot: rootPath, repository }).repositoryIdentity!,
+  rootPath,
+});
+
+function childRepositoryService(input: {
+  readonly projects: ReadonlyArray<OrchestrationProjectShell>;
+  readonly children: Readonly<Record<string, ReadonlyArray<readonly [string, string]>>>;
+  readonly seen: Array<{ readonly cwd: string; readonly repository: string }>;
+  readonly settings?: ServerSettings;
+  readonly discovered?: Array<readonly [string, number]>;
+}) {
+  const identities = new Map(
+    Object.values(input.children)
+      .flat()
+      .map(([cwd, repository]) => [cwd, childIdentity(repository, cwd)] as const),
+  );
+  return makeService({
+    ...(input.settings === undefined ? {} : { settings: input.settings }),
+    projects: input.projects,
+    providers: [
+      fakeProvider(SourceControlProviderKind.make("github"), {
+        listChangeRequests: ({ cwd, repository }) =>
+          Effect.sync(() => {
+            input.seen.push({ cwd, repository });
+            return {
+              items: [changeRequest(repository.length, "2026-07-05T00:00:00Z")],
+              truncated: false,
+              continues: false,
+            };
+          }),
+        getChangeRequestSummary: ({ cwd, repository }) =>
+          Effect.sync(() => {
+            input.seen.push({ cwd, repository });
+            return changeRequest(7, "2026-07-02T00:00:00Z");
+          }),
+      }),
+    ],
+    resolveRepositoryIdentity: (cwd) => Effect.succeed(identities.get(cwd) ?? null),
+    discoverChildRepositories: (root, depth) =>
+      Effect.sync(() => {
+        input.discovered?.push([root, depth]);
+        return (input.children[root] ?? []).map(([cwd]) => cwd);
+      }),
+  });
+}
+
+it.effect("lists repositories in the child folders of a project that is not one itself", () =>
+  Effect.gen(function* () {
+    const seen: Array<{ cwd: string; repository: string }> = [];
+    const discovered: Array<readonly [string, number]> = [];
+    const service = yield* childRepositoryService({
+      projects: [project({ id: "ws", title: "workspace", workspaceRoot: "/ws" })],
+      children: {
+        "/ws": [
+          ["/ws/repos/web", "acme/web"],
+          ["/ws/repos/api", "acme/api"],
+        ],
+      },
+      seen,
+      discovered,
+    });
+
+    const result = yield* service.list({ state: "open" });
+
+    assert.deepStrictEqual(discovered, [["/ws", 3]]);
+    assert.sameDeepMembers(seen, [
+      { cwd: "/ws/repos/web", repository: "acme/web" },
+      { cwd: "/ws/repos/api", repository: "acme/api" },
+    ]);
+    assert.sameDeepMembers(
+      result.entries.map(({ projectId, repository, repositoryPath }) => ({
+        projectId,
+        repository,
+        repositoryPath,
+      })),
+      [
+        { projectId: "ws" as ProjectId, repository: "acme/web", repositoryPath: "repos/web" },
+        { projectId: "ws" as ProjectId, repository: "acme/api", repositoryPath: "repos/api" },
+      ],
+    );
+  }),
+);
+
+it.effect(
+  "lists a repository project's own pull requests beside its ignored child repositories",
+  () =>
+    Effect.gen(function* () {
+      const seen: Array<{ cwd: string; repository: string }> = [];
+      const service = yield* childRepositoryService({
+        projects: [
+          project({ id: "ws", title: "workspace", workspaceRoot: "/ws", repository: "acme/ws" }),
+        ],
+        children: { "/ws": [["/ws/repos/web", "acme/web"]] },
+        seen,
+      });
+
+      const result = yield* service.list({ state: "open" });
+
+      assert.sameDeepMembers(seen, [
+        { cwd: "/ws", repository: "acme/ws" },
+        { cwd: "/ws/repos/web", repository: "acme/web" },
+      ]);
+      assert.strictEqual(
+        result.entries.find((entry) => entry.repository === "acme/ws")?.repositoryPath,
+        undefined,
+      );
+    }),
+);
+
+it.effect("reads a repository checked out in several child folders once", () =>
+  Effect.gen(function* () {
+    const seen: Array<{ cwd: string; repository: string }> = [];
+    const service = yield* childRepositoryService({
+      projects: [project({ id: "ws", title: "workspace", workspaceRoot: "/ws" })],
+      children: {
+        "/ws": [
+          ["/ws/repos/web", "acme/web"],
+          ["/ws/desks/one/web", "acme/web"],
+          ["/ws/desks/two/web", "acme/web"],
+        ],
+      },
+      seen,
+    });
+
+    const result = yield* service.list({ state: "open" });
+
+    assert.deepStrictEqual(seen, [{ cwd: "/ws/repos/web", repository: "acme/web" }]);
+    assert.strictEqual(result.entries.length, 1);
+  }),
+);
+
+it.effect("leaves a child repository with the project dedicated to it", () =>
+  Effect.gen(function* () {
+    const seen: Array<{ cwd: string; repository: string }> = [];
+    const service = yield* childRepositoryService({
+      projects: [
+        project({ id: "ws", title: "workspace", workspaceRoot: "/ws" }),
+        project({ id: "web", title: "web", workspaceRoot: "/code/web", repository: "acme/web" }),
+      ],
+      children: { "/ws": [["/ws/repos/web", "acme/web"]] },
+      seen,
+    });
+
+    const result = yield* service.list({ state: "open" });
+
+    assert.deepStrictEqual(seen, [{ cwd: "/code/web", repository: "acme/web" }]);
+    assert.deepStrictEqual(
+      result.entries.map(({ projectId, repositoryPath }) => ({ projectId, repositoryPath })),
+      [{ projectId: "web" as ProjectId, repositoryPath: undefined }],
+    );
+  }),
+);
+
+it.effect("does not look in child folders when the project turns it off", () =>
+  Effect.gen(function* () {
+    const seen: Array<{ cwd: string; repository: string }> = [];
+    const discovered: Array<readonly [string, number]> = [];
+    const service = yield* childRepositoryService({
+      settings: {
+        ...DEFAULT_SERVER_SETTINGS,
+        projectSettingsOverrides: {
+          ["ws" as ProjectId]: { pullRequestChildRepositoryDepth: 0 },
+        },
+      },
+      projects: [
+        project({ id: "ws", title: "workspace", workspaceRoot: "/ws", repository: "acme/ws" }),
+        project({ id: "other", title: "other", workspaceRoot: "/other" }),
+      ],
+      children: { "/ws": [["/ws/repos/web", "acme/web"]] },
+      seen,
+      discovered,
+    });
+
+    yield* service.list({ state: "open" });
+
+    assert.deepStrictEqual(discovered, [["/other", 3]]);
+    assert.deepStrictEqual(seen, [{ cwd: "/ws", repository: "acme/ws" }]);
+  }),
+);
+
+it.effect("routes a reference to a repository in one of the project's child folders", () =>
+  Effect.gen(function* () {
+    const seen: Array<{ cwd: string; repository: string }> = [];
+    const service = yield* childRepositoryService({
+      projects: [
+        project({ id: "ws", title: "workspace", workspaceRoot: "/ws", repository: "acme/ws" }),
+      ],
+      children: {
+        "/ws": [
+          ["/ws/repos/web", "acme/web"],
+          ["/ws/repos/api", "acme/api"],
+        ],
+      },
+      seen,
+    });
+
+    yield* service.summary(
+      { projectId: "ws" as ProjectId, host: "github.com", repository: "acme/api", number: 7 },
+      { recoverTransientFailure: false },
+    );
+    yield* service.summary(
+      { projectId: "ws" as ProjectId, repository: "acme/web", number: 7 },
+      { recoverTransientFailure: false },
+    );
+
+    assert.deepStrictEqual(seen, [
+      { cwd: "/ws/repos/api", repository: "acme/api" },
+      { cwd: "/ws/repos/web", repository: "acme/web" },
+    ]);
   }),
 );

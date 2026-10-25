@@ -51,6 +51,182 @@
         // Keep this small boot-time copy in sync with the built-in palettes so
         // the selected theme is visible before the app has mounted.
         const BUILT_IN_THEME_PALETTES = {
+          "rome-arctic": {
+            light: {
+              background: "#eceff4",
+              foreground: "#2e3440",
+              accent: "#4c6e98",
+              chrome: "#eceff4",
+            },
+            dark: {
+              background: "#2e3440",
+              foreground: "#eceff4",
+              accent: "#88c0d0",
+              chrome: "#2e3440",
+            },
+          },
+          "rome-rose": {
+            light: {
+              background: "#faf4ed",
+              foreground: "#4a4568",
+              accent: "#9c4f66",
+              chrome: "#faf4ed",
+            },
+            dark: {
+              background: "#232136",
+              foreground: "#e0def4",
+              accent: "#ea9a97",
+              chrome: "#232136",
+            },
+          },
+          "rome-solar": {
+            light: {
+              background: "#fdf6e3",
+              foreground: "#36454f",
+              accent: "#1b6fae",
+              chrome: "#fdf6e3",
+            },
+            dark: {
+              background: "#002b36",
+              foreground: "#eee8d5",
+              accent: "#b58900",
+              chrome: "#002b36",
+            },
+          },
+          "rome-neon": {
+            light: {
+              background: "#e6e7ed",
+              foreground: "#343b58",
+              accent: "#1f66c9",
+              chrome: "#e6e7ed",
+            },
+            dark: {
+              background: "#1a1b26",
+              foreground: "#c0caf5",
+              accent: "#7dcfff",
+              chrome: "#1a1b26",
+            },
+          },
+          "rome-mocha": {
+            light: {
+              background: "#eff1f5",
+              foreground: "#4c4f69",
+              accent: "#8839ef",
+              chrome: "#eff1f5",
+            },
+            dark: {
+              background: "#1e1e2e",
+              foreground: "#cdd6f4",
+              accent: "#cba6f7",
+              chrome: "#1e1e2e",
+            },
+          },
+          "rome-harvest": {
+            light: {
+              background: "#fbf1c7",
+              foreground: "#3c3836",
+              accent: "#af3a03",
+              chrome: "#fbf1c7",
+            },
+            dark: {
+              background: "#282828",
+              foreground: "#ebdbb2",
+              accent: "#fabd2f",
+              chrome: "#282828",
+            },
+          },
+          "rome-nightshade": {
+            light: {
+              background: "#fffbeb",
+              foreground: "#1f1f1f",
+              accent: "#644ac9",
+              chrome: "#fffbeb",
+            },
+            dark: {
+              background: "#282a36",
+              foreground: "#f8f8f2",
+              accent: "#bd93f9",
+              chrome: "#282a36",
+            },
+          },
+          "rome-forest": {
+            light: {
+              background: "#f3ead3",
+              foreground: "#424e55",
+              accent: "#5c7300",
+              chrome: "#f3ead3",
+            },
+            dark: {
+              background: "#2d353b",
+              foreground: "#d3c6aa",
+              accent: "#a7c080",
+              chrome: "#2d353b",
+            },
+          },
+          "rome-wave": {
+            light: {
+              background: "#f2ecbc",
+              foreground: "#43435a",
+              accent: "#4d699b",
+              chrome: "#f2ecbc",
+            },
+            dark: {
+              background: "#1f1f28",
+              foreground: "#dcd7ba",
+              accent: "#7e9cd8",
+              chrome: "#1f1f28",
+            },
+          },
+          "rome-matte": {
+            light: {
+              background: "#fbfbfa",
+              foreground: "#181818",
+              accent: "#181818",
+              chrome: "#fbfbfa",
+            },
+            dark: {
+              background: "#131313",
+              foreground: "#ececec",
+              accent: "#ececec",
+              chrome: "#131313",
+            },
+          },
+          "rome-paper": {
+            light: {
+              background: "#faf6ee",
+              foreground: "#2b2520",
+              accent: "#b9512c",
+              chrome: "#faf6ee",
+            },
+            dark: {
+              background: "#1c1a16",
+              foreground: "#ece4d6",
+              accent: "#e07a52",
+              chrome: "#1c1a16",
+            },
+          },
+          "rome-midnight": {
+            dark: {
+              background: "#10141f",
+              foreground: "#e4e9f5",
+              accent: "#7c9cff",
+              chrome: "#10141f",
+            },
+          },
+          "rome-spaces": {
+            light: {
+              background: "#fcfcfc",
+              foreground: "#27272a",
+              accent: "#1b4ed8",
+              chrome: "#fcfcfc",
+            },
+            dark: {
+              background: "#0a0a0a",
+              foreground: "#f5f5f5",
+              accent: "#346bf1",
+              chrome: "#0a0a0a",
+            },
+          },
           "t3-chat": {
             light: {
               background: "oklch(0.982446 0.010114 325.653)",
@@ -477,13 +653,13 @@
         cursor: pointer;
       }
     </style>
-    <title>T3 Code (Beta)</title>
+    <title>Rome</title>
   </head>
   <body>
     <div id="root">
       <div id="boot-shell">
-        <div id="boot-shell-card" aria-label="T3 Code splash screen">
-          <img id="boot-shell-logo" src="/apple-touch-icon.png" alt="T3 Code" />
+        <div id="boot-shell-card" aria-label="Rome splash screen">
+          <img id="boot-shell-logo" src="/apple-touch-icon.png" alt="Rome" />
         </div>
       </div>
     </div>

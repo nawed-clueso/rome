@@ -1,5 +1,6 @@
 import {
   DEFAULT_SERVER_SETTINGS,
+  MAX_PULL_REQUEST_CHILD_REPOSITORY_DEPTH,
   type ModelSelection,
   type ProviderInstanceId,
   type WorktreeSubmodules,
@@ -46,6 +47,10 @@ import {
 } from "./useScopedSettings";
 
 const WORKTREE_SUBMODULES_OPTIONS = ["recursive", "top-level", "none"] as const;
+const CHILD_REPOSITORY_DEPTH_OPTIONS = ["0", "1", "2", "3"] as const;
+function childRepositoryDepthLabel(depth: string): string {
+  return depth === "0" ? "Off" : depth === "1" ? "1 level deep" : `${depth} levels deep`;
+}
 function isWorktreeSubmodules(value: string | null): value is WorktreeSubmodules {
   return value !== null && (WORKTREE_SUBMODULES_OPTIONS as readonly string[]).includes(value);
 }
@@ -93,6 +98,7 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
   const mixedAutoPull = useScopedSettingsMixed(["defaultAutoPull"]);
   const mixedAgentCredits = useScopedSettingsMixed(["removeAgentCreditsOnMerge"]);
   const mixedMergeMethod = useScopedSettingsMixed(["pullRequestMergeMethod"]);
+  const mixedChildRepositoryDepth = useScopedSettingsMixed(["pullRequestChildRepositoryDepth"]);
   const modelSource = useScopedSettingSource(["defaultModelSelection"]);
   const isProjectScope = scope.kind === "project" || scope.kind === "checkout";
   const unavailable = connectedEnvironments.length === 0;
@@ -478,6 +484,66 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
                   <SelectItem value="merge">{PULL_REQUEST_MERGE_METHOD_LABELS.merge}</SelectItem>
                   <SelectItem value="squash">{PULL_REQUEST_MERGE_METHOD_LABELS.squash}</SelectItem>
                   <SelectItem value="rebase">{PULL_REQUEST_MERGE_METHOD_LABELS.rebase}</SelectItem>
+                </SelectPopup>
+              </Select>
+            }
+          />
+          <SettingsRow
+            serverScoped
+            settingKeys={["pullRequestChildRepositoryDepth"]}
+            mixed={mixedChildRepositoryDepth}
+            {...searchableSetting("pull-request-child-repository-depth")}
+            description={
+              isProjectScope
+                ? "Also lists pull requests for Git repositories in this project's subfolders, including ignored ones."
+                : "Also lists pull requests for Git repositories in a project's subfolders, including ignored ones. Projects can override it."
+            }
+            resetAction={
+              settings.pullRequestChildRepositoryDepth !==
+              DEFAULT_SERVER_SETTINGS.pullRequestChildRepositoryDepth ? (
+                <SettingResetButton
+                  label="child folder depth"
+                  tooltip={`Reset to ${childRepositoryDepthLabel(String(DEFAULT_SERVER_SETTINGS.pullRequestChildRepositoryDepth)).toLowerCase()}`}
+                  onClick={() =>
+                    updateSettings({
+                      pullRequestChildRepositoryDepth:
+                        DEFAULT_SERVER_SETTINGS.pullRequestChildRepositoryDepth,
+                    })
+                  }
+                />
+              ) : null
+            }
+            control={
+              <Select
+                value={
+                  mixedChildRepositoryDepth
+                    ? null
+                    : String(settings.pullRequestChildRepositoryDepth)
+                }
+                onValueChange={(value) => {
+                  const depth = Number(value);
+                  if (
+                    Number.isInteger(depth) &&
+                    depth >= 0 &&
+                    depth <= MAX_PULL_REQUEST_CHILD_REPOSITORY_DEPTH
+                  ) {
+                    updateSettings({ pullRequestChildRepositoryDepth: depth });
+                  }
+                }}
+              >
+                <SelectTrigger size="sm" aria-label="Pull requests from child folders">
+                  <SelectValue>
+                    {(value: string | null) =>
+                      value === null ? "Mixed" : childRepositoryDepthLabel(value)
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectPopup align="end" alignItemWithTrigger={false}>
+                  {CHILD_REPOSITORY_DEPTH_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {childRepositoryDepthLabel(option)}
+                    </SelectItem>
+                  ))}
                 </SelectPopup>
               </Select>
             }
