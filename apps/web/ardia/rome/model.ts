@@ -15,7 +15,13 @@ import {
   spacesForNewWindow,
   wasHandedOff,
 } from "./windows";
-import { knownFavicon, pageEngine, setParked, showPageAt } from "../shims/web/webviewPool";
+import {
+  knownFavicon,
+  pageEngine,
+  setAgentDriven,
+  setParked,
+  showPageAt,
+} from "../shims/web/webviewPool";
 
 // The browser as T3 Code's own UI sees it: spaces, tabs and which thread each tab
 // belongs to. T3 Code draws all of it; Ardia only keeps the tabs and pages.
@@ -439,6 +445,17 @@ export function showTabAt(tabId: string, element: HTMLElement | null) {
 /** Tells the pages the browser window is hidden, so its own page stays unseen. */
 export function setBrowserParked(parked: boolean) {
   setParked(parked);
+}
+
+/** Loads a sleeping tab's page without showing it. */
+export function wakeTab(tabId: string) {
+  const tab = store().tabs[tabId];
+  if (tab && !wantsPage(tab)) store().updateTab(tabId, wake(tab));
+}
+
+/** Keeps a tab's page drawn while out of view, for an agent working in it. */
+export function setTabAgentDriven(tabId: string, driven: boolean) {
+  setAgentDriven(tabId, driven);
 }
 
 /** A tab's session partition and guest id, for its extension buttons; null until its page loads. */

@@ -1,3 +1,4 @@
+import type { RomeTab } from "@t3-ardia/entry";
 import { matchComposerThreadItems } from "@t3tools/client-runtime/composerThreadItems";
 import type {
   EnvironmentId,
@@ -33,11 +34,46 @@ import {
   matchesPullRequestQuery,
   rankPullRequestMatches,
 } from "../pullRequest/pullRequestList.logic";
+import { useBrowserModel } from "../../browser/rome/browserStore";
 import type { ComposerCommandItem } from "./ComposerCommandMenu";
 import {
   searchSlashCommandItems,
   slashCommandItemsForPromptPosition,
 } from "./composerSlashCommandSearch";
+
+const COMPOSER_TAB_RESULT_LIMIT = 4;
+const COMPOSER_RECENT_TAB_LIMIT = 3;
+const NO_TABS: Record<string, RomeTab> = {};
+
+/** Rome's open tabs matching an @ query, most recently used first; the latest few for an empty one. */
+function matchComposerTabItems(tabs: Record<string, RomeTab>, rawQuery: string) {
+  const query = rawQuery.trim().toLowerCase();
+  return Object.values(tabs)
+    .filter(
+      (tab) =>
+        tab.url.length > 0 &&
+        (query.length === 0 ||
+          tab.title.toLowerCase().includes(query) ||
+          tab.url.toLowerCase().includes(query)),
+    )
+    .sort((left, right) => right.lastActiveAt - left.lastActiveAt)
+    .slice(0, query.length === 0 ? COMPOSER_RECENT_TAB_LIMIT : COMPOSER_TAB_RESULT_LIMIT)
+    .map((tab) => ({
+      id: `browser-tab:${tab.id}`,
+      type: "browser-tab" as const,
+      tab,
+      label: tab.title || tab.url,
+      description: hostOf(tab.url),
+    }));
+}
+
+const hostOf = (url: string) => {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+};
 
 const COMPOSER_PULL_REQUEST_LIST_LIMIT = 99;
 const COMPOSER_PULL_REQUEST_RESULT_LIMIT = 12;
@@ -89,6 +125,9 @@ export function useComposerMenuItems({
     pullRequestTextQuery === debouncedPullRequestTextQuery ? pullRequestTextQuery : null;
   const isPathTrigger = composerTriggerKind === "path";
   const environmentThreadShells = useThreadShells(isPathTrigger);
+  const browserTabs = useBrowserModel((state) =>
+    isPathTrigger ? (state.browser?.tabs ?? NO_TABS) : NO_TABS,
+  );
   const workspaceEntries = useComposerPathSearch({
     environmentId,
     cwd: isPathTrigger ? gitCwd : null,
@@ -163,6 +202,7 @@ export function useComposerMenuItems({
           excludeThreadId: activeThreadId,
           query: composerTrigger.query,
         }),
+        ...matchComposerTabItems(browserTabs, composerTrigger.query),
         ...workspaceEntries.entries.map((entry) => ({
           id: `path:${entry.kind}:${entry.path}`,
           type: "path" as const,

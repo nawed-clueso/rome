@@ -166,6 +166,10 @@ export function readThreadPreviewState(ref: ScopedThreadRef): ThreadPreviewState
   return appAtomRegistry.get(previewStateAtom(scopedThreadKey(ref)));
 }
 
+// A browser tab shared with its chat's agent: the browser shows it, so the preview
+// panel never holds or renders it.
+const sharedBrowserTab = (snapshot: PreviewSessionSnapshot) => snapshot.surface === "ardia";
+
 export function applyPreviewServerEvent(ref: ScopedThreadRef, event: PreviewEvent): void {
   updateThreadPreviewState(ref, (current) => {
     if (current.serverEpoch !== null && event.serverEpoch !== current.serverEpoch) return current;
@@ -176,7 +180,9 @@ export function applyPreviewServerEvent(ref: ScopedThreadRef, event: PreviewEven
         case "navigated":
         case "resized": {
           const snapshot = event.snapshot;
-          if (current.suppressedTabIds.has(snapshot.tabId)) return current;
+          if (current.suppressedTabIds.has(snapshot.tabId) || sharedBrowserTab(snapshot)) {
+            return current;
+          }
           const recentlySeenUrls =
             snapshot.navStatus._tag === "Idle"
               ? current.recentlySeenUrls
@@ -250,7 +256,7 @@ export function applyPreviewServerSnapshot(
         desktopByTabId: {},
       };
     }
-    if (current.suppressedTabIds.has(snapshot.tabId)) return current;
+    if (current.suppressedTabIds.has(snapshot.tabId) || sharedBrowserTab(snapshot)) return current;
     const existing = current.sessions[snapshot.tabId];
     if (existing && existing.updatedAt > snapshot.updatedAt) return current;
     const recentlySeenUrls = rememberSnapshotUrl(current.recentlySeenUrls, snapshot);
@@ -274,7 +280,7 @@ export function updatePreviewServerSnapshot(
   snapshot: PreviewSessionSnapshot,
 ): void {
   updateThreadPreviewState(ref, (current) => {
-    if (current.suppressedTabIds.has(snapshot.tabId)) return current;
+    if (current.suppressedTabIds.has(snapshot.tabId) || sharedBrowserTab(snapshot)) return current;
     const existing = current.sessions[snapshot.tabId];
     if (existing && existing.updatedAt > snapshot.updatedAt) return current;
     const sessions = { ...current.sessions, [snapshot.tabId]: snapshot };
@@ -306,7 +312,7 @@ export function reconcilePreviewServerSessions(
     const currentSuppressedTabIds = sameServer ? current.suppressedTabIds : new Set<string>();
     let recentlySeenUrls = current.recentlySeenUrls;
     for (const snapshot of snapshots) {
-      if (currentSuppressedTabIds.has(snapshot.tabId)) continue;
+      if (currentSuppressedTabIds.has(snapshot.tabId) || sharedBrowserTab(snapshot)) continue;
       const existing = sameServer ? current.sessions[snapshot.tabId] : undefined;
       const next = existing && existing.updatedAt > snapshot.updatedAt ? existing : snapshot;
       sessions[next.tabId] = next;

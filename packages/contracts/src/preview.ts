@@ -148,6 +148,14 @@ export const PreviewRuntime = Schema.Literals(["desktop", "server"]);
 export type PreviewRuntime = typeof PreviewRuntime.Type;
 
 /**
+ * Where a session's page lives when the preview panel doesn't own it. "ardia" is
+ * a Rome browser tab shared with its chat's agent: the browser shows the page,
+ * so the preview UI never renders it, and the server only drives it.
+ */
+export const PreviewSurface = Schema.Literals(["ardia"]);
+export type PreviewSurface = typeof PreviewSurface.Type;
+
+/**
  * Host setup the server's browser is missing, sent as JSON in the reason when
  * the preview stream closes with code 4503. Close reasons are capped at 123
  * bytes, which this fits.
@@ -176,6 +184,7 @@ export const PreviewSessionSnapshot = Schema.Struct({
   profileId: Schema.optional(BrowserProfileId),
   runtime: Schema.optional(PreviewRuntime),
   automationOwner: Schema.optional(Schema.String),
+  surface: Schema.optional(PreviewSurface),
   reveal: Schema.optional(Schema.Boolean),
   revealRequest: Schema.optional(Schema.Struct({ id: Schema.String, force: Schema.Boolean })),
   updatedAt: Schema.String,
@@ -188,6 +197,7 @@ export const PreviewOpenInput = Schema.Struct({
   viewport: Schema.optional(PreviewViewportSetting),
   profileId: Schema.optional(BrowserProfileId),
   runtime: Schema.optional(PreviewRuntime),
+  surface: Schema.optional(PreviewSurface),
   reveal: Schema.optional(Schema.Boolean),
 });
 export type PreviewOpenInput = typeof PreviewOpenInput.Type;

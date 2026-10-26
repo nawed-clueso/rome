@@ -5,6 +5,7 @@ import { create } from "zustand";
 import { ardiaAvailable, loadArdia } from "../ardia/ardiaHostStore";
 import { splitTabKey, useSplitViewStore } from "../../splitViewStore";
 import { folderItem, useFolderStore } from "./folderStore";
+import { useTabMentionStore } from "./tabMentionStore";
 import { syncStoresAcrossWindows } from "./windowSync";
 
 /** The browser's spaces and tabs as the app's own UI draws them; null until it loads. */
@@ -34,6 +35,7 @@ export function startBrowserModel() {
         if (model.tabs[id] || module.wasHandedOff(id)) continue;
         useFolderStore.getState().release(folderItem.tab(id));
         useSplitViewStore.getState().leave(splitTabKey(id));
+        useTabMentionStore.getState().forget(id);
       }
     });
   });

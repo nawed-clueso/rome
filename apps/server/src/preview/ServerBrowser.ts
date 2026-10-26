@@ -721,6 +721,10 @@ const make = Effect.gen(function* () {
       adopted === undefined && (await desktopRenders(snapshot))
         ? await connectDesktop(snapshot)
         : null;
+    // A shared browser tab is the user's own page: never stand a headless page in for it.
+    if (snapshot.surface === "ardia" && desktop === null) {
+      throw new Error("The browser tab isn't available to the agent right now.");
+    }
     const isolatedContext =
       adopted === undefined &&
       desktop === null &&

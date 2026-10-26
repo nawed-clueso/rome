@@ -413,6 +413,23 @@ const cornerOf = (element: Element | null) => {
   return `0 0 ${style.borderBottomRightRadius} ${style.borderBottomLeftRadius}`;
 };
 
+// Pages an agent is working in. Out of view they stay drawn: transparent, behind
+// everything and inside the window, since Chromium draws no frames for a page that
+// is hidden or off screen, and the agent's snapshots need one.
+const agentDriven = new Set<string>();
+
+/** Keeps a tab's page drawn while it's out of view, for an agent working in it. */
+export function setAgentDriven(key: string, driven: boolean) {
+  if (driven === agentDriven.has(key)) return;
+  if (driven) agentDriven.add(key);
+  else agentDriven.delete(key);
+  const entry = entries.get(key);
+  if (entry) {
+    entry.lastRect = "";
+    place(entry);
+  }
+}
+
 function place(entry: PoolEntry) {
   const style = entry.wrapper.style;
   const external = externals.get(entry.key);
@@ -420,11 +437,14 @@ function place(entry: PoolEntry) {
   if (!target || !layer) {
     if (entry.revealFrame) cancelAnimationFrame(entry.revealFrame);
     entry.revealFrame = 0;
+    const drawn = agentDriven.has(entry.key);
     Object.assign(style, {
-      left: "-100000px",
-      visibility: "hidden",
+      left: drawn ? "0px" : "-100000px",
+      top: "0px",
+      zIndex: drawn ? "-1" : "",
+      visibility: drawn ? "visible" : "hidden",
       pointerEvents: "none",
-      opacity: "",
+      opacity: drawn ? "0" : "",
     });
     entry.lastRect = "";
     return;
@@ -438,6 +458,7 @@ function place(entry: PoolEntry) {
   const [left, top, width, height] = next.split(",");
   const revealing = style.visibility !== "visible";
   Object.assign(style, {
+    zIndex: "",
     left: `${left}px`,
     top: `${top}px`,
     width: `${width}px`,

@@ -23,6 +23,7 @@ import { RpcGroup, RpcMessage, RpcServer } from "effect/rpc";
 import * as SqlClient from "effect/sql/SqlClient";
 
 import * as PreviewAutomationBroker from "./mcp/PreviewAutomationBroker.ts";
+import * as RomeBrowserBridge from "./preview/RomeBrowserBridge.ts";
 import * as ServerBrowser from "./preview/ServerBrowser.ts";
 import * as AcpRegistryRuntimeCoordinator from "@t3tools/provider-acp-registry/server/AcpRegistryRuntimeCoordinator";
 import * as AcpRegistrySupport from "@t3tools/provider-acp-registry/server/AcpRegistrySupport";
@@ -468,6 +469,11 @@ it.effect(
             {},
             yield* PreviewAutomationBroker.PreviewAutomationBroker,
             yield* ServerBrowser.ServerBrowser,
+            RomeBrowserBridge.RomeBrowserBridge.of({
+              request: () => Effect.die("unused"),
+              respond: () => Effect.void,
+              requests: Stream.empty,
+            }),
           ).pipe(Layer.provide(configRpcServices)),
         ),
       );

@@ -40,6 +40,8 @@ import * as McpToolAccess from "./McpToolAccess.ts";
 import * as OrchestratorMcpService from "./OrchestratorMcpService.ts";
 import { PreviewControlsToolkit } from "./toolkits/previewControls/tools.ts";
 import * as PreviewControlsHandlers from "./toolkits/previewControls/handlers.ts";
+import { RomeBrowserToolkit } from "./toolkits/romeBrowser/tools.ts";
+import * as RomeBrowserHandlers from "./toolkits/romeBrowser/handlers.ts";
 import { EnvironmentToolkit } from "./toolkits/environment/tools.ts";
 import * as EnvironmentHandlers from "./toolkits/environment/handlers.ts";
 import { ProjectToolkit } from "./toolkits/project/tools.ts";
@@ -1025,6 +1027,11 @@ const layerPreviewControlsRegistration = toolkitRegistration(
   PreviewControlsHandlers.layer,
 );
 
+const layerRomeBrowserRegistration = toolkitRegistration(
+  RomeBrowserToolkit,
+  RomeBrowserHandlers.layer,
+);
+
 const layerEnvironmentToolkit = toolkitRegistration(
   EnvironmentToolkit,
   EnvironmentHandlers.layer,
@@ -1073,6 +1080,7 @@ export const layer = Layer.mergeAll(
   layerProjectRegistration,
   layerEnvironmentToolkit,
   layerPreviewControlsRegistration,
+  layerRomeBrowserRegistration,
   layerWorktreeToolkitRegistration,
   layerPullRequestsToolkit,
   layerDeviceToolkit,

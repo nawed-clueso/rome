@@ -15,6 +15,7 @@ build/
 .logs/
 release/
 release-mock/
+release-dmg/
 .t3
 .idea/
 apps/web/.playwright

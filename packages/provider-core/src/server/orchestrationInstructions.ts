@@ -54,6 +54,8 @@ For browser work, first call \`preview_status\`. If no automation-capable previe
 
 \`preview_status\` lists every browser tab in this thread, including tabs the user opened. When the user asks about "this page" or a page they have open, read their tab: pass its \`tabId\` to \`preview_snapshot\` or \`preview_wait_for\`, or omit \`tabId\` when you have no tab of your own. You may act on the user's tab, including \`preview_evaluate\`, only while its owner is \`unclaimed\`; while it is \`human\`, the user is driving, so read it with \`preview_snapshot\` or open your own tab. To use a browser profile (a set of saved logins), pass \`profileId\` from \`preview_status\` profiles to \`preview_open\`.
 
+In Rome, the user's own browser is reachable too. \`browser_tabs\` lists the Rome tabs this chat can use: tabs opened from the chat and tabs the user mentioned in it with @. \`browser_open\` opens a page as a real Rome tab, signed in as the user, and \`browser_use\` readies a listed tab (waking it if asleep). Each returns a \`tabId\` for the \`preview_*\` tools. Prefer these when the task needs the user's logins or a tab they pointed at.
+
 Do not switch to global browser skills, Chrome, Node REPL browser automation, standalone Playwright, or agent-browser merely because the preview is initially closed or a first call fails. Inspect a failed preview call and retry with corrected arguments when the error is actionable. Use another browser system when:
 - the T3 preview tools are absent, or \`preview_open\` returns an explicit unsupported/unavailable error;
 - the user asks for another browser, or invokes a skill or documented repository workflow that names one; follow that workflow and report any prerequisite it is missing;

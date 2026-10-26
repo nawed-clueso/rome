@@ -12,7 +12,9 @@ import * as ElectronDialog from "../electron/ElectronDialog.ts";
 import * as ElectronProtocol from "../electron/ElectronProtocol.ts";
 import * as ElectronSafeStorage from "../electron/ElectronSafeStorage.ts";
 import { installDesktopIpcHandlers } from "../ipc/DesktopIpcHandlers.ts";
+import { installAgentTabsIpc } from "../ardia/AgentTabs.ts";
 import { installRomeWindowsIpc } from "../ardia/RomeWindows.ts";
+import * as DesktopBrowserHost from "../preview/DesktopBrowserHost.ts";
 import * as DesktopAppActivation from "./DesktopAppActivation.ts";
 import * as DesktopAppIdentity from "./DesktopAppIdentity.ts";
 import * as DesktopClerk from "./DesktopClerk.ts";
@@ -191,6 +193,12 @@ const bootstrap = Effect.gen(function* () {
   }
   yield* installDesktopIpcHandlers();
   const runWindowEffect = Effect.runPromiseWith(yield* Effect.context<never>());
+  const browserHost = yield* DesktopBrowserHost.DesktopBrowserHost;
+  installAgentTabsIpc({
+    attach: browserHost.attach,
+    detach: browserHost.detach,
+    onAgentInput: browserHost.onAgentInput,
+  });
   installRomeWindowsIpc({
     open: (id) => runWindowEffect(desktopWindow.openRomeWindow(id)),
     focus: (id) => runWindowEffect(desktopWindow.focusRomeWindow(id)),

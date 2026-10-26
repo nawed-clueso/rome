@@ -67,6 +67,10 @@ declare module "@t3-ardia/entry" {
   export function activateTab(tabId: string): void;
   export function closeTab(tabId: string): void;
   export function setPinned(tabId: string, pinned: boolean): void;
+  /** Keeps a tab's page drawn while out of view, for an agent working in it. */
+  export function setTabAgentDriven(tabId: string, driven: boolean): void;
+  /** Loads a sleeping tab's page without showing it. */
+  export function wakeTab(tabId: string): void;
   /** Moves a tab before `beforeId` among its space's tabs pinned the same way; null for last. */
   export function moveTab(tabId: string, beforeId: string | null): void;
   export function showTabAt(tabId: string, element: HTMLElement | null): void;

@@ -274,6 +274,7 @@ import {
   PreviewAdjustInput,
   PreviewSessionSnapshot,
 } from "./preview.ts";
+import { RomeBrowserRequest, RomeBrowserRespondInput } from "./romeBrowser.ts";
 import {
   DeviceActionInput,
   DeviceCloseInput,
@@ -459,6 +460,7 @@ export const WS_METHODS = {
   previewClearProfile: "preview.clearProfile",
   previewReportProfiles: "preview.reportProfiles",
   previewReportStatus: "preview.reportStatus",
+  romeBrowserRespond: "romeBrowser.respond",
 
   deviceConfigure: "device.configure",
   deviceList: "device.list",
@@ -572,6 +574,7 @@ export const WS_METHODS = {
   subscribeTerminalEvents: "subscribeTerminalEvents",
   subscribeTerminalMetadata: "subscribeTerminalMetadata",
   subscribePreviewEvents: "subscribePreviewEvents",
+  subscribeRomeBrowserRequests: "subscribeRomeBrowserRequests",
   subscribeDiscoveredLocalServers: "subscribeDiscoveredLocalServers",
   subscribeDeviceState: "subscribeDeviceState",
   subscribeServerConfig: "subscribeServerConfig",
@@ -1552,6 +1555,18 @@ const WsSubscribePreviewEventsRpc = Rpc.make(WS_METHODS.subscribePreviewEvents, 
   stream: true,
 });
 
+const WsRomeBrowserRespondRpc = Rpc.make(WS_METHODS.romeBrowserRespond, {
+  payload: RomeBrowserRespondInput,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsSubscribeRomeBrowserRequestsRpc = Rpc.make(WS_METHODS.subscribeRomeBrowserRequests, {
+  payload: Schema.Struct({}),
+  success: RomeBrowserRequest,
+  error: EnvironmentAuthorizationError,
+  stream: true,
+});
+
 const WsSubscribeDiscoveredLocalServersRpc = Rpc.make(WS_METHODS.subscribeDiscoveredLocalServers, {
   payload: Schema.Struct({
     configuredUrls: Schema.optional(ConfiguredLocalServerUrls),
@@ -2046,6 +2061,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsPreviewReportProfilesRpc,
   WsPreviewReportStatusRpc,
   WsSubscribePreviewEventsRpc,
+  WsRomeBrowserRespondRpc,
+  WsSubscribeRomeBrowserRequestsRpc,
   WsSubscribeDiscoveredLocalServersRpc,
   WsDeviceConfigureRpc,
   WsDeviceListRpc,

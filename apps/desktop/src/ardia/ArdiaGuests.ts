@@ -152,7 +152,22 @@ const isSignInPage = (url: string): boolean => {
   }
 };
 
-const attachDebugger = (contents: Electron.WebContents): boolean => {
+/** A browser tab the asking window hosts, by its id; null for anything else. */
+export const guestOf = (
+  event: Electron.IpcMainInvokeEvent | Electron.IpcMainEvent,
+  id: unknown,
+) => {
+  if (event.sender.getType() !== "window" || typeof id !== "number") return null;
+  const guest = Electron.webContents.fromId(id);
+  return guest &&
+    !guest.isDestroyed() &&
+    isArdiaGuest(guest) &&
+    guest.hostWebContents === event.sender
+    ? guest
+    : null;
+};
+
+export const attachDebugger = (contents: Electron.WebContents): boolean => {
   try {
     if (!contents.debugger.isAttached()) contents.debugger.attach("1.3");
     return true;
@@ -263,17 +278,6 @@ export const installArdiaIpc = (): void => {
     if (event.sender.getType() !== "window" || typeof visible !== "boolean" || !isMac) return;
     Electron.BrowserWindow.fromWebContents(event.sender)?.setWindowButtonVisibility(visible);
   });
-  // Pick and snapshot act on a tab the asking window hosts, and nothing else.
-  const guestOf = (event: Electron.IpcMainInvokeEvent | Electron.IpcMainEvent, id: unknown) => {
-    if (event.sender.getType() !== "window" || typeof id !== "number") return null;
-    const guest = Electron.webContents.fromId(id);
-    return guest &&
-      !guest.isDestroyed() &&
-      isArdiaGuest(guest) &&
-      guest.hostWebContents === event.sender
-      ? guest
-      : null;
-  };
   Electron.ipcMain.handle(ARDIA_PICK_CHANNEL, (event, id: unknown, theme: unknown) => {
     const guest = guestOf(event, id);
     if (!guest || typeof theme !== "object" || theme === null) return null;

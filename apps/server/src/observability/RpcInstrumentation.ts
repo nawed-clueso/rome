@@ -197,6 +197,8 @@ const RPC_AGGREGATES = {
   [WS_METHODS.previewReportProfiles]: "preview",
   [WS_METHODS.previewReportStatus]: "preview",
   [WS_METHODS.subscribePreviewEvents]: "preview",
+  [WS_METHODS.romeBrowserRespond]: "preview",
+  [WS_METHODS.subscribeRomeBrowserRequests]: "preview",
   [WS_METHODS.subscribeDiscoveredLocalServers]: "preview",
   [WS_METHODS.deviceConfigure]: "device",
   [WS_METHODS.deviceTestHost]: "device",

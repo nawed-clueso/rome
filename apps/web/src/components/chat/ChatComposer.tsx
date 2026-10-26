@@ -5,6 +5,8 @@ import { runtimeModeConfig, runtimeModeOptions as runtimeModes } from "./runtime
 import { isLocalEnvironmentDisabled } from "../../localEnvironment";
 import { usePrimaryEnvironmentId } from "../../state/environments";
 import { useRightPanelStore } from "~/rightPanelStore";
+import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { useTabMentionStore } from "../../browser/rome/tabMentionStore";
 import { importPastedComposerText, readPastedComposerContext } from "../composerInlineTokenPaste";
 import {
   questionAttachmentDraftId,
@@ -2050,6 +2052,36 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         addComposerDraftThreadContexts(attachmentDraftTarget, [record], {
           appendReference: false,
         });
+        setComposerHighlightedItemId(null);
+      }
+      return;
+    }
+    if (item.type === "browser-tab") {
+      if (trigger.kind !== "path") return;
+      const draft =
+        typeof composerDraftTarget === "string"
+          ? useComposerDraftStore.getState().getDraftThread(composerDraftTarget)
+          : composerDraftTarget;
+      const title = (item.tab.title || item.tab.url).replace(/[[\]]/gu, "");
+      const replacement = `[${title}](${item.tab.url}) `;
+      const replacementRangeEnd = extendReplacementRangeForTrailingSpace(
+        snapshot.value,
+        trigger.rangeEnd,
+        replacement,
+      );
+      const applied = applyPromptReplacement(trigger.rangeStart, replacementRangeEnd, replacement, {
+        expectedText: snapshot.value.slice(trigger.rangeStart, replacementRangeEnd),
+      });
+      if (applied) {
+        // The mentioned tab becomes this chat's, for its agent's browser tools.
+        if (draft) {
+          useTabMentionStore
+            .getState()
+            .mention(
+              item.tab.id,
+              scopedThreadKey(scopeThreadRef(draft.environmentId as EnvironmentId, draft.threadId)),
+            );
+        }
         setComposerHighlightedItemId(null);
       }
       return;

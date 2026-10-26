@@ -47,6 +47,8 @@ export {
   setBrowserParked,
   moveTab,
   setPinned,
+  setTabAgentDriven,
+  wakeTab,
   showTabAt,
   startPictures,
   switchSpace,

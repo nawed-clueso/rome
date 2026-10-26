@@ -39,6 +39,16 @@ export function createPreviewEnvironmentAtoms<R, E>(
       // unmounted projects stop contributing probe candidates on the server.
       idleTtlMs: 0,
     }),
+    browserRequests: createEnvironmentRpcSubscriptionAtomFamily(runtime, {
+      label: "environment-data:preview:browser-requests",
+      tag: WS_METHODS.subscribeRomeBrowserRequests,
+      // Every request must reach a window to be answered.
+      transform: (stream) => stream.pipe(Stream.rechunk(1)),
+    }),
+    browserRespond: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:preview:browser-respond",
+      tag: WS_METHODS.romeBrowserRespond,
+    }),
     open: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:preview:open",
       tag: WS_METHODS.previewOpen,

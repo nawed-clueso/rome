@@ -1,12 +1,13 @@
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import type { RomeSpace, RomeTab } from "@t3-ardia/entry";
 import { useLocation, useNavigate } from "@tanstack/react-router";
-import { AppWindowIcon, ChevronDownIcon, PlusIcon } from "lucide-react";
+import { AppWindowIcon, BotIcon, ChevronDownIcon, PlusIcon } from "lucide-react";
 import { useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { cn } from "~/lib/utils";
 import { ardiaAvailable, useArdiaHostStore } from "../../../browser/ardia/ardiaHostStore";
+import { useAgentDriving } from "../../../browser/rome/agentActivityStore";
 import {
   browser,
   startBrowserModel,
@@ -166,6 +167,7 @@ function PinnedTile({
   landing: boolean;
 }) {
   const showTab = useShowTab();
+  const driving = useAgentDriving(tab.id);
   return (
     <button
       type="button"
@@ -180,7 +182,7 @@ function PinnedTile({
         void showTabMenu(tab, { x: event.clientX, y: event.clientY });
       }}
       className={cn(
-        "grid h-10 cursor-pointer place-items-center rounded-xl outline-hidden transition-colors",
+        "relative grid h-10 cursor-pointer place-items-center rounded-xl outline-hidden transition-colors",
         "focus-visible:ring-2 focus-visible:ring-ring",
         landing
           ? "bg-sidebar-foreground/[0.08] ring-(--space-accent,var(--foreground)) ring-1 ring-inset"
@@ -190,6 +192,12 @@ function PinnedTile({
       )}
     >
       <SiteIcon src={tab.favicon} className="size-4" />
+      {driving ? (
+        <BotIcon
+          aria-label="The agent is working in this tab"
+          className="absolute top-1 right-1 size-3 animate-pulse text-sidebar-muted-foreground"
+        />
+      ) : null}
     </button>
   );
 }

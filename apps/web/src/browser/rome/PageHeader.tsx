@@ -104,7 +104,10 @@ export async function showAddressBarMenu(event: ReactMouseEvent, place: AddressB
  * badges, popups, and a menu to remove an extension.
  */
 export function ExtensionActions(props: { readonly tabId: string }) {
-  const engine = browser()?.tabEngine(props.tabId) ?? null;
+  // The page arrives after the tab, and a new page can replace it, so the engine is
+  // read again whenever the tab loads or moves.
+  const page = useTab(props.tabId);
+  const engine = page ? (browser()?.tabEngine(page.id) ?? null) : null;
   if (!engine) return null;
   return createElement("browser-action-list", {
     partition: engine.partition,

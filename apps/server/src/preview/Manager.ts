@@ -197,6 +197,7 @@ export const make = Effect.gen(function* PreviewManagerMake() {
         ...(runtime === "server" && input.automationOwner !== undefined
           ? { automationOwner: input.automationOwner }
           : {}),
+        ...(input.surface === undefined ? {} : { surface: input.surface }),
         ...(input.reveal === undefined ? {} : { reveal: input.reveal }),
         updatedAt,
       };

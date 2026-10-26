@@ -63,6 +63,8 @@ export class DesktopBrowserHost extends Context.Service<
     readonly detach: (key: DesktopBrowserTabKey) => void;
     readonly humanStartedDownload: (source: Electron.WebContents) => boolean;
     readonly placeDownload: (source: Electron.WebContents, item: Electron.DownloadItem) => boolean;
+    /** Hears the agent typing, clicking, navigating or running script in a tab. */
+    readonly onAgentInput: (listener: (webContents: Electron.WebContents) => void) => () => void;
     readonly pointers: Stream.Stream<{
       readonly key: DesktopBrowserTabKey;
       readonly phase: "move" | "click";
@@ -128,6 +130,12 @@ export const make = Effect.gen(function* () {
     return true;
   };
 
+  const agentInputListeners = new Set<(webContents: Electron.WebContents) => void>();
+  const onAgentInput = (listener: (webContents: Electron.WebContents) => void) => {
+    agentInputListeners.add(listener);
+    return () => void agentInputListeners.delete(listener);
+  };
+
   const detach = (key: DesktopBrowserTabKey) => {
     const id = keyOf(key);
     const tab = tabs.get(id);
@@ -176,7 +184,10 @@ export const make = Effect.gen(function* () {
         tab.relay = null;
         return;
       }
-      if (AGENT_INPUT_COMMAND.test(command.value.message)) tab.agentInputAt = performance.now();
+      if (AGENT_INPUT_COMMAND.test(command.value.message)) {
+        tab.agentInputAt = performance.now();
+        for (const listener of agentInputListeners) listener(tab.debuggee.webContents);
+      }
       relayFor(tab).receive(command.value.message);
     });
 
@@ -211,6 +222,7 @@ export const make = Effect.gen(function* () {
     detach,
     placeDownload,
     humanStartedDownload,
+    onAgentInput,
   });
 });
 

@@ -1,9 +1,10 @@
 import type { RomeTab } from "@t3-ardia/entry";
-import { GlobeIcon, Volume2Icon, XIcon } from "lucide-react";
+import { BotIcon, GlobeIcon, Volume2Icon, XIcon } from "lucide-react";
 import { memo, useState, type MouseEvent as ReactMouseEvent } from "react";
 
 import { readLocalApi } from "~/localApi";
 import { cn } from "~/lib/utils";
+import { useAgentDriving } from "../../../browser/rome/agentActivityStore";
 import { browser } from "../../../browser/rome/browserStore";
 import { closeFolderTab, unfileTab } from "../../../browser/rome/folderActions";
 import { filedItems, folderItem, useFolderStore } from "../../../browser/rome/folderStore";
@@ -76,6 +77,7 @@ export const BrowserTabRow = memo(function BrowserTabRow(props: {
 }) {
   const { tab, active, nested = false, inFolder = false } = props;
   const showTab = useShowTab();
+  const driving = useAgentDriving(tab.id);
   const onContextMenu = (event: ReactMouseEvent) => {
     event.preventDefault();
     void showTabMenu(tab, { x: event.clientX, y: event.clientY });
@@ -106,6 +108,12 @@ export const BrowserTabRow = memo(function BrowserTabRow(props: {
     >
       <SiteIcon src={tab.favicon} className="size-3.5 shrink-0" />
       <span className="min-w-0 flex-1 truncate">{tab.title}</span>
+      {driving ? (
+        <BotIcon
+          aria-label="The agent is working in this tab"
+          className="size-3.5 shrink-0 animate-pulse text-sidebar-muted-foreground"
+        />
+      ) : null}
       {tab.audible ? (
         <Volume2Icon
           aria-label="Playing audio"
