@@ -1,141 +1,64 @@
-# T3 Code
+# Rome
 
-T3 Code is an "agent harness control surface". It enables control of the agents on your machine with a best-in-class mobile app ([iOS](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824), [Android](https://play.google.com/store/apps/details?id=com.t3tools.t3code)), [web app](https://app.t3.codes) and [Electron-based desktop app](https://t3.codes).
+Rome is [T3 Code](https://github.com/pingdotgg/t3code) with the [Ardia](https://github.com/mantrakp04/ardia) browser built in: your coding agents and your browser in one window, sharing one sidebar.
 
-Works with your subscriptions on Claude Code, Codex, Cursor, Grok Build, OpenCode, and Google Antigravity. If they're set up on your computer, T3 Code can control them.
+- **Chats and tabs together.** Tabs opened while working in a chat belong to it and come back with it. Spaces, pinned tabs and folders work as in Arc.
+- **Split view.** Put chats and pages side by side, name the split, and keep it in its space.
+- **One New screen.** Cmd+N starts a chat, Cmd+T searches or opens a page.
+- **Bring your browsing.** Import spaces, pinned tabs, folders and history from Arc, Dia, Chrome, Brave, Edge, Vivaldi, Comet or Helium.
+- **A real browser.** Two-finger swipes go back and forward, extensions install from the Chrome Web Store, and protected media (Spotify, Netflix) plays through Widevine.
 
-## "Wait, what are you selling me?"
+Rome works with the agents T3 Code supports (Claude Code, Codex, Cursor, Grok Build, OpenCode and Antigravity) using your own subscriptions. Install and sign in to at least one of them first.
 
-Nothing. We built T3 Code because we wanted the best possible development experience with agents. We were inspired by existing solutions like the Codex desktop app, Conductor, Claude Desktop and Cursor Glass, but none met our bar.
+Rome is a personal fork and macOS only for now. It isn't affiliated with T3 Tools or the Ardia project.
 
-We wanted something performant, remote-ready, and truly open. If we ever go the wrong direction, we want you to have everything you need to fork and build the editor that you want.
+## Build from source
 
-## Installation
-
-> [!WARNING]
-> T3 Code currently supports Codex, Claude, Cursor, Grok Build, OpenCode, and Antigravity. Install and authenticate at least one provider before use:
->
-> - Codex: install [Codex CLI](https://developers.openai.com/codex/cli) and run `codex login`
-> - Claude: install [Claude Code](https://claude.com/product/claude-code) and run `claude auth login`
-> - Cursor: install [Cursor CLI](https://cursor.com/cli) and run `agent login`
-> - Grok Build: install [Grok Build CLI](https://x.ai/cli) and run `grok login`
-> - OpenCode: install [OpenCode](https://opencode.ai) and run `opencode auth login`
-> - Antigravity: enable it in Settings, then use **Install Antigravity** and **Sign in with Google**. No CLI is required.
-
-### Command line
+You need macOS on Apple Silicon, [Vite+](https://viteplus.dev/guide/) (`curl -fsSL https://vite.plus | bash`) and Node 26.
 
 ```bash
-curl -fsSL https://t3.codes/install.sh | sh
-```
-
-On Windows, in PowerShell:
-
-```powershell
-irm https://t3.codes/install.ps1 | iex
-```
-
-Then run `t3` to start the server and open the local web app. `t3 service install` keeps it running in the background, `t3 update` moves to a newer release, and `t3 --help` has the full reference.
-
-To try it once without installing, run `npx t3@latest` instead.
-
-### Desktop app
-
-Install the latest version of the desktop app from [GitHub Releases](https://github.com/pingdotgg/t3code/releases), or from your favorite package registry:
-
-#### Windows (`winget`)
-
-```bash
-winget install T3Tools.T3Code
-```
-
-#### Windows (`scoop`)
-
-```bash
-scoop install extras/t3code
-```
-
-#### macOS (Homebrew)
-
-```bash
-brew install --cask t3-code
-```
-
-#### Debian, Ubuntu (`.deb`)
-
-Download the `.deb` from [GitHub Releases](https://github.com/pingdotgg/t3code/releases), then:
-
-```bash
-sudo apt install ./T3-Code-*.deb
-```
-
-#### Arch Linux (AUR)
-
-Stable:
-
-```bash
-yay -S t3code-bin
-```
-
-Nightly:
-
-```bash
-yay -S t3code-nightly-bin
-```
-
-The AUR packaging is maintained in this repository under [`packaging/aur`](./packaging/aur).
-
-## Some notes
-
-We are very very early in this project. Expect bugs.
-
-We are (mostly) not accepting contributions yet. Small fixes may be considered. Big features will not be.
-
-## Documentation
-
-Full docs live in [docs/](./docs). There's no docs site yet.
-
-- [Install and first run](./docs/user/install.md)
-- [Permission modes](./docs/user/permission-modes.md)
-- [Keyboard shortcuts](./docs/user/keybindings.md)
-- [Project settings](./docs/user/project-settings.md)
-- [Appearance preferences](./docs/user/appearance.md)
-- [Remote access from a phone or another machine](./docs/user/remote-access.md)
-- [Connect Claude Code, Codex, ChatGPT and other agents over MCP](./docs/user/outside-agents.md)
-- [Keeping app and server in sync](./docs/user/updating.md)
-- [Source control integrations](./docs/user/source-control.md)
-- Multiple accounts: [Codex](./docs/user/providers-codex.md) · [Claude](./docs/user/providers-claude.md)
-- [Run T3 Code as a background service](./docs/user/background-service.md)
-
-Building from source? Start at [docs/internals/overview.md](./docs/internals/overview.md).
-
-## If you REALLY want to contribute still.... read this first
-
-### Install `vp`
-
-T3 Code uses Vite+ so you'll need to install the global `vp` command-line tool.
-
-#### macOS / Linux
-
-```bash
-curl -fsSL https://vite.plus | bash
-```
-
-#### Windows
-
-```bash
-irm https://vite.plus/ps1 | iex
-```
-
-Checkout their getting started guide for more information: https://viteplus.dev/guide/
-
-### Install dependencies
-
-```bash
+git clone --recurse-submodules https://github.com/nawed-clueso/rome.git
+cd rome
 vp i
 ```
 
-Read [CONTRIBUTING.md](./CONTRIBUTING.md) before reporting a bug or opening a PR.
+Run the app in development:
 
-Have a feature request? Start an [Ideas discussion](https://github.com/pingdotgg/t3code/discussions/categories/ideas).
+```bash
+vp run dev:desktop
+```
 
-Need support? Join the [Discord](https://discord.gg/jn4EGJjrvv).
+Set `T3CODE_DESKTOP_HIDDEN=1` to run it invisibly (it still renders, for automated testing), and `T3CODE_DESKTOP_REMOTE_DEBUGGING_PORT=9333` to drive it over the Chrome DevTools Protocol.
+
+Build the app:
+
+```bash
+node scripts/build-desktop-artifact.ts --platform mac --target zip --arch arm64 --output-dir release-local
+```
+
+The zip in `release-local` holds `Rome.app`. Rome keeps its data in `~/.rome`, apart from T3 Code's.
+
+After installing a build, `scripts/rome-ui-update.sh` updates just the interface in place, without a full build, as long as only `apps/web` changed.
+
+### Protected media
+
+Rome runs on castLabs' [Electron for Content Security](https://github.com/castlabs/electron-releases), which installs Google's Widevine module on first launch. Out of the box it carries castLabs' development signature, which most streaming services refuse. To sign your builds for production, create a free [castLabs EVS](https://github.com/castlabs/electron-releases/wiki/EVS) account:
+
+```bash
+python3 -m pip install castlabs-evs
+python3 -m castlabs_evs.account signup
+```
+
+Builds sign themselves once the account exists. Its sign-in lasts about a month; renew it with `python3 -m castlabs_evs.account reauth`.
+
+## Documentation
+
+T3 Code's documentation applies to Rome's agent side: see [docs](./docs) and the [T3 Code repository](https://github.com/pingdotgg/t3code).
+
+## Security
+
+See [SECURITY.md](./SECURITY.md) to report a vulnerability.
+
+## License
+
+Rome is licensed under the [MIT License](./LICENSE), like T3 Code. It builds in Ardia's browser sources, which are under the Apache License 2.0; see [NOTICE](./NOTICE) for all credits.

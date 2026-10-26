@@ -203,6 +203,36 @@
           ]
         }
       ]
+    },
+    {
+      "bundles": ["desktop", "web"],
+      "license": "Apache-2.0",
+      "name": "Ardia",
+      "sourceUrl": "https://github.com/mantrakp04/ardia",
+      "generatedNotices": [
+        {
+          "licenseId": "Apache-2.0",
+          "copyrights": ["Copyright 2026 Mantra Patel"],
+          "preamble": [
+            "Rome's browser is built from Ardia's browser app sources (apps/browser and the packages under packages/), licensed under the Apache License 2.0. Ardia's GPL-3.0 Chromium engine is not included."
+          ]
+        }
+      ]
+    },
+    {
+      "bundles": ["desktop", "web"],
+      "license": "MIT",
+      "name": "Kagi and imput !bang list",
+      "sourceUrl": "https://github.com/mantrakp04/ardia/tree/main/third_party/bangs",
+      "generatedNotices": [
+        {
+          "licenseId": "MIT",
+          "copyrights": ["Copyright (c) 2024 Kagi Search, 2026 imput"],
+          "preamble": [
+            "The !bang shortcuts in Rome's address bar come from a snapshot of the list Kagi Search and imput publish, carried in Ardia's packages/core/src/bangList.ts."
+          ]
+        }
+      ]
     }
   ],
   "packageOverrides": [
@@ -210,18 +240,31 @@
       "name": "@react-native/normalize-colors",
       "version": "0.74.89",
       "generatedNotices": [
-        { "licenseId": "MIT", "copyrights": ["Copyright (c) Meta Platforms, Inc. and affiliates."] }
+        {
+          "licenseId": "MIT",
+          "copyrights": ["Copyright (c) Meta Platforms, Inc. and affiliates."]
+        }
       ]
     },
     {
       "name": "tr46",
       "version": "0.0.3",
-      "generatedNotices": [{ "licenseId": "MIT", "copyrights": ["Copyright (c) Sebastian Mayr"] }]
+      "generatedNotices": [
+        {
+          "licenseId": "MIT",
+          "copyrights": ["Copyright (c) Sebastian Mayr"]
+        }
+      ]
     },
     {
       "name": "electron-chrome-web-store",
       "version": "0.13.0",
-      "generatedNotices": [{ "licenseId": "MIT", "copyrights": ["Copyright (c) Samuel Maddock"] }]
+      "generatedNotices": [
+        {
+          "licenseId": "MIT",
+          "copyrights": ["Copyright (c) Samuel Maddock"]
+        }
+      ]
     },
     {
       "name": "remark-math",
