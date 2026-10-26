@@ -59,6 +59,36 @@ function noteVisit(url: string, title: string, favicon: string | null, spaceId: 
   save();
 }
 
+/**
+ * Adds pages visited in another browser to a space's history, so the address
+ * field suggests them. Pages already known keep the higher count and newer visit.
+ * Returns how many were new.
+ */
+export function importVisits(
+  visits: readonly { url: string; title: string; visits: number; lastVisit: number }[],
+  spaceId: string,
+): number {
+  let added = 0;
+  for (const visit of visits) {
+    if (!isPage(visit.url)) continue;
+    const found = history.find((entry) => entry.url === visit.url && entry.spaceId === spaceId);
+    if (found) {
+      found.visits = Math.max(found.visits, visit.visits);
+      found.lastVisit = Math.max(found.lastVisit, visit.lastVisit);
+      if (!found.title && visit.title) found.title = visit.title;
+      continue;
+    }
+    history.push({ ...visit, favicon: null, spaceId });
+    added += 1;
+  }
+  if (history.length > HISTORY_LIMIT) {
+    history.sort((a, b) => b.lastVisit - a.lastVisit);
+    history = history.slice(0, HISTORY_LIMIT);
+  }
+  save();
+  return added;
+}
+
 let recording = false;
 function record() {
   if (recording) return;

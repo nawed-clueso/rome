@@ -12,6 +12,7 @@ import * as Electron from "electron";
 import { previewWindowOpenAction } from "../preview/Manager.ts";
 import { addExtensionTab, enableExtensions, installExtensionIpc } from "./ArdiaExtensions.ts";
 import { cancelPick, pickInGuest, snapshotGuest } from "./ArdiaPick.ts";
+import { installBrowserMigrationIpc } from "./BrowserMigration.ts";
 import { installDiaImportIpc } from "./DiaImport.ts";
 import { isSignInLocation, SIGN_IN_PERSONA_ARGUMENT } from "./SignInPersona.ts";
 import {
@@ -255,6 +256,7 @@ export const installArdiaIpc = (): void => {
     event.sender.getType() === "window" ? fetchSuggestions(url) : { ok: false, text: "" },
   );
   installDiaImportIpc();
+  installBrowserMigrationIpc();
   installExtensionIpc(ARDIA_TAB_SHOWN_CHANNEL);
   // A full-window page hides the window buttons, as Arc does with its sidebar away.
   Electron.ipcMain.on(ARDIA_WINDOW_CONTROLS_CHANNEL, (event, visible: unknown) => {

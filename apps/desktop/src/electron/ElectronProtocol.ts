@@ -56,7 +56,14 @@ export class ElectronProtocolUnregistrationError extends Schema.TaggedError<Elec
 export type DesktopProtocolRegistrationInput = {
   readonly scheme: string;
   readonly clerkFrontendApiHostname: string | undefined;
-} & ({ readonly targetOrigin: URL } | { readonly assetDirectory: string });
+} & (
+  | { readonly targetOrigin: URL }
+  | {
+      readonly assetDirectory: string;
+      /** Served instead of `assetDirectory` while it holds an index.html. */
+      readonly overrideDirectory?: string;
+    }
+);
 
 export class ElectronProtocol extends Context.Service<
   ElectronProtocol,
@@ -212,10 +219,19 @@ const proxyRequest = Effect.fn("desktop.protocol.proxyRequest")(function* (
 
 const serveDesktopAsset = Effect.fn("desktop.protocol.serveAsset")(function* (
   request: Request,
-  assetDirectory: string,
+  packagedDirectory: string,
+  overrideDirectory: string | undefined,
 ) {
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
+  // Checked on every request, so an override installed while the app runs takes
+  // over on the next reload.
+  const overridden =
+    overrideDirectory !== undefined &&
+    (yield* fileSystem
+      .exists(path.join(overrideDirectory, "index.html"))
+      .pipe(Effect.orElseSucceed(() => false)));
+  const assetDirectory = overridden ? overrideDirectory : packagedDirectory;
   const url = new URL(request.url);
   if (url.host !== DESKTOP_HOST) return new Response(null, { status: 404 });
   if (request.method !== "GET" && request.method !== "HEAD") {
@@ -266,7 +282,9 @@ export const make = Effect.gen(function* () {
             Electron.protocol.handle(input.scheme, async (request) => {
               if ("assetDirectory" in input) {
                 return withContentSecurityPolicy(
-                  await runPromise(serveDesktopAsset(request, input.assetDirectory)),
+                  await runPromise(
+                    serveDesktopAsset(request, input.assetDirectory, input.overrideDirectory),
+                  ),
                   contentSecurityPolicy,
                 );
               }

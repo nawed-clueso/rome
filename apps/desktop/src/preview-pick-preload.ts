@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 
 import { PASSKEY_BRIDGE_ARGUMENT } from "./preview/GuestProtocol.ts";
 import { installPasskeyBridge } from "./preview/PasskeyBridge.ts";
+import { forwardPageSwipes, ROME_TAB_ARGUMENT } from "./ardia/PageGestures.ts";
 import {
   isSignInLocation,
   presentPageAsFirefox,
@@ -23,4 +24,9 @@ if (persona && isSignInLocation(window.location)) {
     func: presentPageAsFirefox,
     args: [persona.slice(SIGN_IN_PERSONA_ARGUMENT.length + 1)],
   });
+}
+
+// Browser tabs: two-finger swipes go back and forward, so the app hears them.
+if (process.argv.includes(ROME_TAB_ARGUMENT)) {
+  forwardPageSwipes((channel, payload) => ipcRenderer.sendToHost(channel, payload));
 }

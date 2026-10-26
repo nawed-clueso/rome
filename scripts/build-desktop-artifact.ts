@@ -2881,6 +2881,18 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   if (platform === "mac") {
     const path = yield* Path.Path;
     const repoRoot = yield* RepoRoot;
+    // castlabs' Electron (Electron for Content Security) carries Widevine, for
+    // protected media such as Spotify. It packages the copy the desktop app has
+    // already installed, and native modules build against the stock release it
+    // is made from.
+    const castlabsElectron = /#v(\d+\.\d+\.\d+)\+wvcus$/.exec(
+      desktopPackageJson.dependencies.electron,
+    );
+    if (castlabsElectron) {
+      buildConfig.electronVersion = castlabsElectron[1];
+      buildConfig.electronDist = path.join(repoRoot, "apps/desktop/node_modules/electron/dist");
+      buildConfig.afterPack = path.join(repoRoot, "scripts/lib/castlabs-vmp-after-pack.cjs");
+    }
     buildConfig.mac = {
       target: target === "dmg" ? [target, "zip"] : [target],
       icon: "icon.icns",

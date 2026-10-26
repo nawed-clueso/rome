@@ -26,6 +26,8 @@ type ArdiaDesktopBridge = {
   onShortcut(listener: (input: DesktopShortcutInput) => void): () => void;
   /** Present on macOS builds only; see apps/desktop/src/ardia/DiaImport.ts. */
   dia?(operation: DesktopDiaOperation): Promise<DesktopDiaReply>;
+  /** Reads another browser's spaces, favourites and history; see apps/desktop/src/ardia/BrowserMigration.ts. */
+  migrate?(operation: "list" | "read", browserId?: string, profileId?: string): Promise<unknown>;
   /** Fetches a search engine's suggestions, which the page itself may not (CORS). */
   suggest?(url: string): Promise<{ ok: boolean; text: string }>;
   /** Shows or hides the macOS window buttons. */

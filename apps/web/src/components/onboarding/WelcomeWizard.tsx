@@ -84,7 +84,9 @@ import { TerminalViewport } from "../ThreadTerminalDrawer";
 import { CloudEnvironmentConnectRows } from "../cloud/CloudEnvironmentConnectList";
 import { presentSavedCloudEnvironmentConnection } from "../cloud/cloudEnvironmentConnectionPresentation";
 import { ProviderInstanceIcon } from "../chat/ProviderInstanceIcon";
-import { RomeMark } from "../RomeMark";
+import { RomeAppIcon } from "../RomeMark";
+import { canImportBrowsers } from "../../browser/rome/browserImport";
+import { BrowserImportStep } from "./BrowserImportStep";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
 import { CommandBlock } from "../CommandBlock";
@@ -100,11 +102,18 @@ import { toastManager } from "../ui/toast";
 import { cn } from "../../lib/utils";
 import { formatRelativeTime } from "../../timestampFormat";
 
-type WizardStep = "connection" | "agents" | "import";
+type WizardStep = "browser" | "connection" | "agents" | "import";
 const NO_ENVIRONMENTS: readonly EnvironmentId[] = [];
 
 const AGENT_ONBOARDING_THREAD_ID = ThreadId.make("onboarding-agent-setup");
 const ONBOARDING_STAGES = ["Connect", "Agents", "Projects"] as const;
+// In the desktop app setup starts by bringing over the user's browser.
+const STAGES: readonly string[] = canImportBrowsers
+  ? ["Browser", ...ONBOARDING_STAGES]
+  : ONBOARDING_STAGES;
+const STEP_ORDER: readonly WizardStep[] = canImportBrowsers
+  ? ["browser", "connection", "agents", "import"]
+  : ["connection", "agents", "import"];
 const SCAN_LIMIT_MESSAGE = "Scan limit reached. Some projects or conversations may be missing.";
 
 export function WelcomeWizard({
@@ -116,7 +125,9 @@ export function WelcomeWizard({
   readonly resumeEnvironmentId?: EnvironmentId | undefined;
   readonly onDone: (projectRef?: ScopedProjectRef) => void | Promise<void>;
 }) {
-  const [step, setStep] = useState<WizardStep>(resumeEnvironmentId ? "agents" : "connection");
+  const [step, setStep] = useState<WizardStep>(
+    resumeEnvironmentId ? "agents" : (STEP_ORDER[0] ?? "connection"),
+  );
   const { environments } = useEnvironments();
   const [selection, setSelection] = useState<ReadonlySet<EnvironmentId> | null>(null);
   // One registry for the wizard's lifetime, shared with the connect list, so a computer is
@@ -160,7 +171,7 @@ export function WelcomeWizard({
     setSetupIds(ids);
     setStep("agents");
   };
-  const stageIndex = step === "agents" ? 1 : step === "import" ? 2 : 0;
+  const stageIndex = Math.max(0, STEP_ORDER.indexOf(step));
   const finish = (
     projectRef?: ScopedProjectRef,
     importWarning?: string,
@@ -234,24 +245,26 @@ export function WelcomeWizard({
           title="Set up Rome"
           identity={
             <div className="flex items-baseline gap-1.5" role="img" aria-label="Rome">
-              <RomeMark className="size-5 shrink-0 self-center" aria-hidden />
+              <RomeAppIcon className="size-6 shrink-0 self-center" />
               <span className="font-display text-2xl font-medium tracking-tight">Rome</span>
             </div>
           }
         >
           <WizardSteps
-            steps={ONBOARDING_STAGES}
+            steps={STAGES}
             currentStep={stageIndex}
             isStepDisabled={(index) => isImporting || index >= stageIndex}
             onStepChange={(index) => {
               if (isImporting || index > stageIndex) return;
-              setStep(index === 0 ? "connection" : "agents");
+              setStep(STEP_ORDER[index] ?? "connection");
             }}
           />
         </WizardHeader>
 
         <WizardPanel holdHeight={isLoadingProjects}>
-          {step === "connection" ? (
+          {step === "browser" ? (
+            <BrowserImportStep onDone={() => setStep("connection")} />
+          ) : step === "connection" ? (
             <ConnectionStep
               expandPairingInitially={!localAvailable && !hasCloudPublicConfig()}
               selectedIds={selectedIds}

@@ -3,6 +3,7 @@
 import * as NodePath from "node:path";
 
 import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as DesktopConfig from "../app/DesktopConfig.ts";
 import type * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -130,6 +131,10 @@ export class ElectronWindow extends Context.Service<
 /** @public Service construction is part of the canonical Effect module API. */
 export const make = Effect.gen(function* () {
   const platform = yield* HostProcess.Platform;
+  const config = yield* DesktopConfig.DesktopConfig;
+  const hidden = config.hiddenWindows && Option.isSome(config.devServerUrl);
+  // Out of the Dock and the app switcher, so a hidden app never comes forward.
+  if (hidden && platform === "darwin") Electron.app.setActivationPolicy("accessory");
   // The focus worker loads a native accessibility module. Start it on the first
   // capture reveal so users who never capture pay nothing at launch.
   let windowsForegroundFocus: ReturnType<typeof startWindowsForegroundFocusThread> | undefined;
@@ -265,6 +270,15 @@ export const make = Effect.gen(function* () {
       Effect.tryPromise({
         try: async () => {
           if (window.isDestroyed()) {
+            return;
+          }
+
+          if (hidden) {
+            // Shown, so it paints for screenshots and tests, but see-through,
+            // unclickable and never focused.
+            window.setOpacity(0);
+            window.setIgnoreMouseEvents(true);
+            if (!window.isVisible()) window.showInactive();
             return;
           }
 

@@ -58,6 +58,8 @@ export const DesktopConfig = Config.all({
   appImagePath: trimmedString("APPIMAGE"),
   disableAutoUpdate: optionalBoolean("T3CODE_DISABLE_AUTO_UPDATE"),
   mockUpdates: optionalBoolean("T3CODE_DESKTOP_MOCK_UPDATES"),
+  /** Development only: the app runs and paints as usual but never shows or takes focus. */
+  hiddenWindows: optionalBoolean("T3CODE_DESKTOP_HIDDEN"),
   mockUpdateServerPort: Config.Port("T3CODE_DESKTOP_MOCK_UPDATE_SERVER_PORT").pipe(
     Config.withDefault(3000),
   ),

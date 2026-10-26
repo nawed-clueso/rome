@@ -1,14 +1,22 @@
 import type { SVGProps } from "react";
 
-/** Rome's mark: an arch on its plinth. */
+import romeAppIconUrl from "../assets/rome-app-icon.png";
+
+/** Rome's mark: a single soft arch, as on the app icon. */
 export function RomeMark(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...props} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
-        d="M4.5 19V11a7.5 7.5 0 0 1 15 0v8h-3.4v-7.6a4.1 4.1 0 0 0-8.2 0V19H4.5Z"
-        fill="currentColor"
+        d="M5.4 18.6C5.4 11.4 8.4 5.6 12 5.6s6.6 5.8 6.6 13"
+        stroke="currentColor"
+        strokeWidth="3.6"
+        strokeLinecap="round"
       />
-      <rect x="3" y="20.2" width="18" height="1.6" rx="0.8" fill="currentColor" />
     </svg>
   );
+}
+
+/** The full-colour app icon, for places that show Rome itself rather than a glyph. */
+export function RomeAppIcon(props: { readonly className?: string }) {
+  return <img src={romeAppIconUrl} alt="" aria-hidden className={props.className} />;
 }

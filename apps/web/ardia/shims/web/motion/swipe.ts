@@ -40,6 +40,27 @@ type Gesture = {
   times: number[];
   deltas: number[];
   time: number;
+  /** For input forwarded from a page: whether the page itself still scrolls each way. */
+  scrolls: PageScrolls | null;
+};
+
+/** Whether a page can still scroll left (back) or right (forward) under the pointer. */
+export type PageScrolls = { back: boolean; forward: boolean };
+
+/** A wheel event, from the window or forwarded from a page in a webview. */
+export type WheelInput = {
+  deltaX: number;
+  deltaY: number;
+  deltaMode: number;
+  wheelDeltaX?: number;
+  wheelDeltaY?: number;
+  ctrlKey: boolean;
+  timeStamp: number;
+  clientX: number;
+  clientY: number;
+  target: Element | null;
+  scrolls?: PageScrolls;
+  preventDefault: () => void;
 };
 
 const targets = new Set<SwipeTarget>();
@@ -63,6 +84,7 @@ function blank(): Gesture {
     times: [],
     deltas: [],
     time: 0,
+    scrolls: null,
   };
 }
 
@@ -187,7 +209,10 @@ function shouldTrack() {
   const below = hasNativePager(target) ? dx === 0 : Math.abs(dx) < START_DISTANCE;
   if (below || START_DOMINANCE * Math.abs(dx) < Math.abs(dy)) return false;
   const direction = dx > 0 ? 1 : -1;
-  if (contentScrolls(gesture.hit, target.node()?.parentElement ?? null, direction)) return reject();
+  const pageScrolls =
+    gesture.scrolls && (direction > 0 ? gesture.scrolls.back : gesture.scrolls.forward);
+  if (pageScrolls || contentScrolls(gesture.hit, target.node()?.parentElement ?? null, direction))
+    return reject();
   const available = direction > 0 ? target.canSwipeBack() : target.canSwipeForward();
   if (!available && !target.tracksUnavailableDirections()) return reject();
   gesture.direction = direction;
@@ -260,9 +285,15 @@ export function end(cancelled: boolean, timestamp: number) {
   return true;
 }
 
-function wheelStep(target: SwipeTarget | null, hit: Element | null, dx: number) {
+function wheelStep(
+  target: SwipeTarget | null,
+  hit: Element | null,
+  dx: number,
+  scrolls?: PageScrolls,
+) {
   if (!target || !isPager(target)) return false;
   const back = dx > 0;
+  if (scrolls && (back ? scrolls.back : scrolls.forward)) return false;
   if (contentScrolls(hit, target.node()?.parentElement ?? null, back ? 1 : -1)) return false;
   target.onSwipe({
     phase: "wheel",
@@ -276,9 +307,9 @@ function wheelStep(target: SwipeTarget | null, hit: Element | null, dx: number) 
   return true;
 }
 
-function isPrecise(e: WheelEvent) {
+function isPrecise(e: WheelInput) {
   if (e.deltaMode !== 0) return false;
-  const legacy = e as WheelEvent & { wheelDeltaX?: number; wheelDeltaY?: number };
+  const legacy = e;
   if (legacy.wheelDeltaX === undefined || legacy.wheelDeltaY === undefined) return true;
   const ratioX = e.deltaX ? Math.abs(legacy.wheelDeltaX / e.deltaX) : 3;
   const ratioY = e.deltaY ? Math.abs(legacy.wheelDeltaY / e.deltaY) : 3;
@@ -324,14 +355,41 @@ function releaseByGap() {
 }
 
 function onWheel(e: WheelEvent) {
+  const legacy = e as WheelEvent & { wheelDeltaX?: number; wheelDeltaY?: number };
+  handleWheel({
+    deltaX: e.deltaX,
+    deltaY: e.deltaY,
+    deltaMode: e.deltaMode,
+    wheelDeltaX: legacy.wheelDeltaX,
+    wheelDeltaY: legacy.wheelDeltaY,
+    ctrlKey: e.ctrlKey,
+    timeStamp: e.timeStamp,
+    clientX: e.clientX,
+    clientY: e.clientY,
+    target: e.target instanceof Element ? e.target : null,
+    preventDefault: () => e.preventDefault(),
+  });
+}
+
+/**
+ * Wheel input from a page in a webview, which the window never sees: the page
+ * gets the trackpad's events itself. Coordinates are the window's.
+ */
+export function feedWheel(input: WheelInput) {
+  install();
+  handleWheel(input);
+}
+
+function handleWheel(e: WheelInput) {
   if (e.ctrlKey || !targets.size) return;
   const t = e.timeStamp / 1000;
   const scrollingDx = -e.deltaX;
   const scrollingDy = -e.deltaY;
   if (!isPrecise(e)) {
     if (Math.abs(scrollingDx) <= Math.abs(scrollingDy)) return;
-    const hit = e.target instanceof Element ? e.target : null;
-    if (wheelStep(targetAt(e.clientX, e.clientY, hit), hit, scrollingDx)) e.preventDefault();
+    const hit = e.target;
+    if (wheelStep(targetAt(e.clientX, e.clientY, hit), hit, scrollingDx, e.scrolls))
+      e.preventDefault();
     return;
   }
   const magnitude = Math.hypot(e.deltaX, e.deltaY);
@@ -354,9 +412,10 @@ function onWheel(e: WheelEvent) {
   if (fresh) {
     if (gesture.state === "pending" || gesture.state === "tracking") end(false, t);
     magnitudes = [];
-    const hit = e.target instanceof Element ? e.target : null;
+    const hit = e.target;
     prepare(e.clientX, e.clientY, hit, t);
     begin(e.clientX, e.clientY, hit, t);
+    gesture.scrolls = e.scrolls ?? null;
   }
   magnitudes.push({ t, m: magnitude });
   if (magnitudes.length > 12) magnitudes.shift();

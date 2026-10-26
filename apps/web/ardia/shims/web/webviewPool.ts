@@ -78,6 +78,14 @@ const byWebContents = new Map<number, PoolEntry>();
 const favicons = new Map<string, string>();
 // Pages the app shows outside the browser window, over its own elements (a split pane).
 const externals = new Map<string, HTMLElement>();
+
+/** The channel a page's preload forwards trackpad scrolls on; see apps/desktop/src/preview-pick-preload.ts. */
+export const PAGE_WHEEL_CHANNEL = "rome:page-wheel";
+let pageWheelListener: ((key: string, view: HTMLElement, input: unknown) => void) | null = null;
+/** Hears the trackpad scrolls pages forward, by tab. */
+export function onPageWheel(listener: typeof pageWheelListener) {
+  pageWheelListener = listener;
+}
 // While the browser window is hidden, its own pages stay drawn but can't be seen.
 let parked = false;
 
@@ -169,6 +177,10 @@ function listen(entry: PoolEntry) {
   const { view } = entry;
   const on = <T>(name: string, handler: (event: ElectronEvent<T>) => void) =>
     view.addEventListener(name, handler as EventListener);
+  // Trackpad scrolls the page forwards for swipe navigation (preview-pick-preload).
+  view.addEventListener("ipc-message", (event) => {
+    if (event.channel === PAGE_WHEEL_CHANNEL) pageWheelListener?.(entry.key, view, event.args[0]);
+  });
   on("dom-ready", () => {
     const first = !entry.ready;
     entry.ready = true;

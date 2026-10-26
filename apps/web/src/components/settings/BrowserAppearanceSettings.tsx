@@ -1,4 +1,10 @@
+import { useState } from "react";
+
 import { type AddressBarPlace, useAddressBarStore } from "../../browser/rome/addressBarStore";
+import { canImportBrowsers } from "../../browser/rome/browserImport";
+import { BrowserImportStep } from "../onboarding/BrowserImportStep";
+import { Button } from "../ui/button";
+import { Dialog, DialogPanel, DialogPopup } from "../ui/dialog";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { SettingResetButton, SettingsRow, SettingsSection } from "./settingsLayout";
 import { searchableSetting } from "./settingsSearch";
@@ -12,6 +18,7 @@ const PLACE_LABELS: Record<AddressBarPlace, string> = {
 export function BrowserAppearanceSection() {
   const place = useAddressBarStore((state) => state.place);
   const setPlace = useAddressBarStore((state) => state.setPlace);
+  const [importing, setImporting] = useState(false);
   return (
     <SettingsSection id="browser-appearance" title="Browser">
       <SettingsRow
@@ -41,6 +48,24 @@ export function BrowserAppearanceSection() {
           </div>
         }
       />
+      {canImportBrowsers ? (
+        <SettingsRow
+          {...searchableSetting("browser-import")}
+          description="Bring spaces, pinned tabs and history over from Arc, Dia, Chrome or another browser."
+          control={
+            <Button size="sm" variant="outline" onClick={() => setImporting(true)}>
+              Import…
+            </Button>
+          }
+        />
+      ) : null}
+      <Dialog open={importing} onOpenChange={setImporting}>
+        <DialogPopup className="max-w-xl">
+          <DialogPanel>
+            <BrowserImportStep skipLabel="Cancel" onDone={() => setImporting(false)} />
+          </DialogPanel>
+        </DialogPopup>
+      </Dialog>
     </SettingsSection>
   );
 }

@@ -1,7 +1,7 @@
 import { closeTab as closeTabAsked, switchToTab } from "@ardia-app/lib/actions";
 import { PROFILE_COLORS, profileAccent, profileTheme } from "@ardia-app/lib/theme";
 import { useBrowser, type BrowserState } from "@ardia-app/store/browser";
-import { activeTabId, tabLabel, viewTabIds } from "@ardia-app/store/model";
+import { activeTabId, pinSection, tabLabel, viewTabIds } from "@ardia-app/store/model";
 import type { Tab } from "@ardia-app/store/types";
 import { webviews } from "@ardia-app/lib/webviews";
 import { wantsPage } from "@ardia-app/lib/tabPages";
@@ -245,6 +245,18 @@ export function setPinned(tabId: string, pinned: boolean) {
   const tab = s.tabs[tabId];
   if (!tab || tab.pinned === pinned) return;
   s.pinTabs([tabId], pinned);
+}
+
+/** Moves a tab to just before `beforeId` among its space's tabs pinned the same way; null for last. */
+export function moveTab(tabId: string, beforeId: string | null) {
+  const s = store();
+  const tab = s.tabs[tabId];
+  if (!tab) return;
+  const section = viewTabIds(s, tab.windowId, tab.profileId).filter(
+    (id) => id !== tabId && pinSection(s.tabs[id]) === pinSection(tab),
+  );
+  const index = beforeId ? section.indexOf(beforeId) : -1;
+  s.moveTab(tabId, index < 0 ? section.length : index);
 }
 
 export function switchSpace(spaceId: string) {

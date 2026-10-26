@@ -1,3 +1,4 @@
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import type { RomeSpace, RomeTab } from "@t3-ardia/entry";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { ChevronDownIcon, PlusIcon } from "lucide-react";
@@ -13,7 +14,12 @@ import {
   useBrowserModel,
   useCurrentSpace,
 } from "../../../browser/rome/browserStore";
-import { filedItems, folderItem, useFolderStore } from "../../../browser/rome/folderStore";
+import {
+  filedItems,
+  folderItem,
+  parseFolderItem,
+  useFolderStore,
+} from "../../../browser/rome/folderStore";
 import { useShowTab } from "../../../browser/rome/useShowTab";
 import { Kbd } from "../../ui/kbd";
 import {
@@ -119,7 +125,16 @@ function SpaceSwitcher() {
   );
 }
 
-function PinnedTile({ tab, active }: { tab: RomeTab; active: boolean }) {
+function PinnedTile({
+  tab,
+  active,
+  landing,
+}: {
+  tab: RomeTab;
+  active: boolean;
+  /** Where the tab being dragged would land. */
+  landing: boolean;
+}) {
   const showTab = useShowTab();
   return (
     <button
@@ -127,6 +142,7 @@ function PinnedTile({ tab, active }: { tab: RomeTab; active: boolean }) {
       title={tab.title}
       aria-label={tab.title}
       aria-current={active ? "page" : undefined}
+      data-pinned-tile={tab.id}
       onPointerDown={(event) => startFolderDrag(event, folderItem.tab(tab.id), tab.title)}
       onClick={() => showTab(tab)}
       onContextMenu={(event) => {
@@ -136,9 +152,11 @@ function PinnedTile({ tab, active }: { tab: RomeTab; active: boolean }) {
       className={cn(
         "grid h-10 cursor-pointer place-items-center rounded-xl outline-hidden transition-colors",
         "focus-visible:ring-2 focus-visible:ring-ring",
-        active
-          ? "bg-sidebar-row-active"
-          : "bg-sidebar-foreground/[0.045] hover:bg-sidebar-foreground/[0.08]",
+        landing
+          ? "bg-sidebar-foreground/[0.08] ring-(--space-accent,var(--foreground)) ring-1 ring-inset"
+          : active
+            ? "bg-sidebar-row-active"
+            : "bg-sidebar-foreground/[0.045] hover:bg-sidebar-foreground/[0.08]",
       )}
     >
       <SiteIcon src={tab.favicon} className="size-4" />
@@ -160,23 +178,42 @@ function PinnedTiles() {
       });
     }),
   );
-  const draggingTab = useFolderDrag()?.item.startsWith("tab:") ?? false;
+  const drag = useFolderDrag();
+  const draggedId = drag?.item.startsWith("tab:") ? parseFolderItem(drag.item).id : null;
+  const dragged = useBrowserModel((state) =>
+    draggedId ? (state.browser?.tabs[draggedId] ?? null) : null,
+  );
   const activeId = useBrowserModel((state) =>
     state.browser?.spaceId ? (state.browser.active[state.browser.spaceId] ?? null) : null,
   );
   const onBrowse = useLocation({ select: (location) => location.pathname === "/browse" });
-  if (!pinned.length && !draggingTab) return null;
+  const [grid] = useAutoAnimate<HTMLDivElement>({ duration: 150 });
+  if (!pinned.length && !dragged) return null;
+  // While a tab is dragged over the tiles, they make room for it where it would land.
+  const drop = drag?.drop?.kind === "tiles" ? drag.drop : null;
+  let tiles = pinned;
+  if (drop && dragged) {
+    tiles = pinned.filter((tab) => tab.id !== dragged.id);
+    const at = drop.before ? tiles.findIndex((tab) => tab.id === drop.before) : -1;
+    tiles = tiles.toSpliced(at < 0 ? tiles.length : at, 0, dragged);
+  }
   return (
     <div
+      ref={grid}
       data-space-slide=""
       data-folder-drop-tiles=""
       className={cn(
         "grid grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))] gap-1.5 px-0.5 pt-2",
-        !pinned.length && "min-h-12 rounded-xl border border-sidebar-foreground/15 border-dashed",
+        !tiles.length && "min-h-12 rounded-xl border border-sidebar-foreground/15 border-dashed",
       )}
     >
-      {pinned.map((tab) => (
-        <PinnedTile key={tab.id} tab={tab} active={onBrowse && tab.id === activeId} />
+      {tiles.map((tab) => (
+        <PinnedTile
+          key={tab.id}
+          tab={tab}
+          active={onBrowse && tab.id === activeId}
+          landing={drop !== null && tab.id === draggedId}
+        />
       ))}
     </div>
   );

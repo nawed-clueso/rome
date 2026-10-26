@@ -20,7 +20,8 @@ export function FolderDragLayer() {
           className="fixed h-0.5 rounded-full bg-(--space-accent,var(--foreground))"
         />
       );
-    } else {
+    } else if (drop.kind !== "tiles") {
+      // The tiles show a drop among them themselves, by making room.
       indicator = (
         <div
           style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}

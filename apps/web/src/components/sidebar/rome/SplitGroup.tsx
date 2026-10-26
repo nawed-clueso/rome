@@ -1,14 +1,17 @@
+import type { RomeBrowser } from "@t3-ardia/entry";
 import { parseScopedThreadKey, scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { useNavigate } from "@tanstack/react-router";
-import { Columns2Icon } from "lucide-react";
-import type { MouseEvent as ReactMouseEvent } from "react";
+import { ChevronRightIcon, Columns2Icon } from "lucide-react";
+import { type MouseEvent as ReactMouseEvent, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 
 import { useThreadRouteTarget } from "~/hooks/useThreadRouteTarget";
 import { readLocalApi } from "~/localApi";
 import { cn } from "~/lib/utils";
 import { type SplitGroup, splitMembers, splitTabId, useSplitViewStore } from "~/splitViewStore";
 import { useThreadShell } from "~/state/entities";
-import { useTab } from "../../../browser/rome/browserStore";
+import { useBrowserModel, useTab } from "../../../browser/rome/browserStore";
+import { spaceOfThread, useThreadSpaceStore } from "../../../browser/rome/threadSpaceStore";
 import { SiteIcon } from "./BrowserTabRow";
 import { buildThreadRouteParams } from "~/threadRoutes";
 
@@ -30,7 +33,7 @@ function MemberRow(props: {
       aria-current={props.current ? "page" : undefined}
       className={cn(
         "flex h-7 min-w-0 cursor-pointer items-center gap-2 rounded-md px-2 text-left text-sm outline-hidden",
-        "hover:bg-sidebar-foreground/[0.06] focus-visible:ring-2 focus-visible:ring-ring",
+        "hover:bg-sidebar-foreground/[0.06] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
         props.open ? "text-sidebar-foreground" : "text-sidebar-foreground/75",
       )}
     >
@@ -52,11 +55,40 @@ function MemberRow(props: {
   );
 }
 
+const SPLIT_DEFAULT_NAME = "Split view";
+
+function SplitNameInput(props: { readonly group: SplitGroup; readonly onDone: () => void }) {
+  const [draft, setDraft] = useState(props.group.name ?? "");
+  const finish = (commit: boolean) => {
+    if (commit) useSplitViewStore.getState().rename(props.group.id, draft);
+    props.onDone();
+  };
+  return (
+    <input
+      autoFocus
+      value={draft}
+      placeholder={SPLIT_DEFAULT_NAME}
+      aria-label="Split name"
+      onFocus={(event) => event.currentTarget.select()}
+      onChange={(event) => setDraft(event.target.value)}
+      onKeyDown={(event) => {
+        event.stopPropagation();
+        if (event.key === "Enter") finish(true);
+        else if (event.key === "Escape") finish(false);
+      }}
+      onBlur={() => finish(true)}
+      className="h-6 w-full min-w-0 rounded-md bg-sidebar-foreground/[0.06] px-2 text-sm text-sidebar-foreground outline-hidden ring-1 ring-ring"
+    />
+  );
+}
+
 function SplitBox(props: { readonly group: SplitGroup; readonly routeKey: string | null }) {
   const navigate = useNavigate();
   const { group, routeKey } = props;
   const members = splitMembers(group);
   const open = routeKey !== null && members.includes(routeKey);
+  const collapsed = group.collapsed === true;
+  const [renaming, setRenaming] = useState(false);
 
   const openMember = (threadKey: string) => {
     // A tab opens the split through one of its chats.
@@ -72,15 +104,17 @@ function SplitBox(props: { readonly group: SplitGroup; readonly routeKey: string
     const api = readLocalApi();
     if (!api) return;
     const choice = await api.contextMenu
-      .show<"separate" | "leave">(
+      .show<"rename" | "separate" | "leave">(
         [
+          { id: "rename", label: "Rename" },
           { id: "separate", label: "Separate tabs" },
           ...(threadKey ? [{ id: "leave" as const, label: "Remove from split" }] : []),
         ],
         { x: event.clientX, y: event.clientY },
       )
       .catch(() => null);
-    if (choice === "separate") useSplitViewStore.getState().separate(group.id);
+    if (choice === "rename") setRenaming(true);
+    else if (choice === "separate") useSplitViewStore.getState().separate(group.id);
     else if (choice === "leave" && threadKey) useSplitViewStore.getState().leave(threadKey);
   };
 
@@ -94,12 +128,34 @@ function SplitBox(props: { readonly group: SplitGroup; readonly routeKey: string
           : "bg-sidebar-foreground/[0.025] ring-sidebar-foreground/10",
       )}
     >
-      <div className="flex h-6 items-center gap-1.5 px-2 font-label text-[10.5px] text-sidebar-muted-foreground uppercase tracking-[0.07em]">
-        <Columns2Icon aria-hidden className="size-3" />
-        <span className="flex-1">Split view</span>
-        <span>{members.length}</span>
-      </div>
-      <div className="flex flex-col">
+      {renaming ? (
+        <SplitNameInput group={group} onDone={() => setRenaming(false)} />
+      ) : (
+        <button
+          type="button"
+          aria-expanded={!collapsed}
+          onClick={() => useSplitViewStore.getState().setCollapsed(group.id, !collapsed)}
+          onDoubleClick={() => setRenaming(true)}
+          className={cn(
+            "group/split flex h-6 w-full cursor-pointer items-center gap-1.5 rounded-md px-2 font-label text-[10.5px] text-sidebar-muted-foreground uppercase tracking-[0.07em] outline-hidden",
+            "hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+          )}
+        >
+          <Columns2Icon aria-hidden className="size-3" />
+          <span className="min-w-0 flex-1 truncate text-left">
+            {group.name ?? SPLIT_DEFAULT_NAME}
+          </span>
+          <span>{members.length}</span>
+          <ChevronRightIcon
+            aria-hidden
+            className={cn(
+              "size-3 shrink-0 transition-transform duration-150",
+              !collapsed && "rotate-90",
+            )}
+          />
+        </button>
+      )}
+      <div className={cn("flex flex-col", collapsed && "hidden")}>
         {members.map((key) => (
           <MemberRow
             key={key}
@@ -116,11 +172,42 @@ function SplitBox(props: { readonly group: SplitGroup; readonly routeKey: string
 }
 
 /**
+ * The space a split lives in: its first chat's, or its first tab's when it holds
+ * only tabs. It moves with its chats, as chats move between spaces.
+ */
+function splitSpace(
+  group: SplitGroup,
+  model: RomeBrowser,
+  spaceOf: Record<string, string>,
+): string | null {
+  const members = splitMembers(group);
+  const chat = members.find((key) => !splitTabId(key));
+  if (chat) {
+    const spaceIds = model.spaces.map((space) => space.id);
+    return spaceOfThread(spaceOf, chat, spaceIds);
+  }
+  for (const key of members) {
+    const tab = model.tabs[splitTabId(key) ?? ""];
+    if (tab) return tab.spaceId;
+  }
+  return null;
+}
+
+/**
  * Each split as one box above the list, the way Arc shows a split as one tab: it
  * opens when you pick any of its chats, and only dragging a chat in adds to it.
  */
 export function SplitGroups() {
-  const groups = useSplitViewStore((state) => state.groups);
+  const allGroups = useSplitViewStore((state) => state.groups);
+  const spaceOf = useThreadSpaceStore((state) => state.spaceOf);
+  // Each space shows its own splits; all of them until the browser has loaded.
+  const groups = useBrowserModel(
+    useShallow((state) => {
+      const model = state.browser;
+      if (!model?.spaceId) return allGroups;
+      return allGroups.filter((group) => splitSpace(group, model, spaceOf) === model.spaceId);
+    }),
+  );
   const routeTarget = useThreadRouteTarget();
   const routeKey = routeTarget?.kind === "server" ? scopedThreadKey(routeTarget.threadRef) : null;
   if (groups.length === 0) return null;

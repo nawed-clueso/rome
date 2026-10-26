@@ -19,7 +19,13 @@ import { requestSidebarToggle } from "./rome";
 import { startPictures } from "./rome/model";
 import { startHistory } from "./rome/search";
 
-export { onSidebarToggle, onTabOpened, setCloseHandler, setNewTabHandler } from "./rome";
+export {
+  onSidebarToggle,
+  onTabOpened,
+  setCloseHandler,
+  setNewChatHandler,
+  setNewTabHandler,
+} from "./rome";
 export {
   SPACE_COLORS,
   createSpace,
@@ -38,6 +44,7 @@ export {
   putAwayThreadTabs,
   setBrowsingFor,
   setBrowserParked,
+  moveTab,
   setPinned,
   showTabAt,
   startPictures,
@@ -47,7 +54,9 @@ export {
   watchBrowser,
 } from "./rome/model";
 export type { RomeBrowser, RomeSpace, RomeTab, SavedTab } from "./rome/model";
-export { addressFor, searchEngineName, suggest } from "./rome/search";
+export { onPageSwipe } from "./rome/pageSwipe";
+export type { PageSwipe, PageSwipeAction } from "./rome/pageSwipe";
+export { addressFor, importVisits, searchEngineName, suggest } from "./rome/search";
 export type { Suggestion } from "./rome/search";
 
 setStoreBatching(unstable_batchedUpdates);

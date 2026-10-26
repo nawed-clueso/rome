@@ -14,6 +14,8 @@ declare module "@t3-ardia/entry" {
   export function setNewTabHandler(
     handler: ((windowId: string, target: NewTabTarget) => void) | null,
   ): () => void;
+  /** Cmd+N on a page starts a chat instead of opening a browser window. */
+  export function setNewChatHandler(handler: (() => void) | null): () => void;
   /** The browser's "toggle sidebar" (Cmd+S while a page has focus). */
   export function onSidebarToggle(listener: () => void): () => void;
   /** Hears every tab the user opens from the sidebar. */
@@ -57,6 +59,8 @@ declare module "@t3-ardia/entry" {
   export function activateTab(tabId: string): void;
   export function closeTab(tabId: string): void;
   export function setPinned(tabId: string, pinned: boolean): void;
+  /** Moves a tab before `beforeId` among its space's tabs pinned the same way; null for last. */
+  export function moveTab(tabId: string, beforeId: string | null): void;
   export function showTabAt(tabId: string, element: HTMLElement | null): void;
   export function setBrowserParked(parked: boolean): void;
   export function tabEngine(tabId: string): { partition: string; webContentsId: number } | null;
@@ -113,6 +117,23 @@ declare module "@t3-ardia/entry" {
     onResult: (items: Suggestion[], completion: string) => void,
   ): () => void;
   export function addressFor(text: string): string;
+  export type PageSwipeAction = "back" | "forward";
+  /** A two-finger swipe on a page, as it happens. */
+  export type PageSwipe = {
+    readonly tabId: string;
+    readonly phase: "began" | "changed" | "ended" | "cancelled";
+    readonly side: "left" | "right";
+    readonly progress: number;
+    readonly action: PageSwipeAction | null;
+    readonly rect: { left: number; top: number; width: number; height: number };
+  };
+  /** Hears page swipes, to draw them; returns a function that stops. */
+  export function onPageSwipe(listener: (swipe: PageSwipe) => void): () => void;
+  /** Adds pages visited in another browser to a space's history; returns how many were new. */
+  export function importVisits(
+    visits: readonly { url: string; title: string; visits: number; lastVisit: number }[],
+    spaceId: string,
+  ): number;
   export function searchEngineName(): string;
   export function watchActivePage(listener: (page: ArdiaActivePage | null) => void): () => void;
 }

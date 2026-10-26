@@ -3,7 +3,7 @@ import { emitAppEvent, emitCommand } from "@ardia/shell";
 import { useBrowser } from "@ardia-app/store/browser";
 import { provideNativeModule } from "../../expo-modules-core";
 import { desktop, type DesktopShortcutInput } from "../../../bridge";
-import { requestClose } from "../../../rome";
+import { requestClose, requestNewChat } from "../../../rome";
 
 type Mod = "cmd" | "shift" | "alt" | "ctrl";
 type Shortcut = {
@@ -202,6 +202,7 @@ function onKeyDown(e: KeyboardEvent) {
     switcher.holding = shortcut.mods.find((m) => m !== "shift") ?? null;
   // Rome decides what Cmd+W closes: the tab, then on to the last view.
   if (shortcut.command === "closeTab" && requestClose()) return;
+  if (shortcut.command === "newWindow" && requestNewChat()) return;
   emitCommand({
     command: shortcut.command,
     arg,
@@ -240,6 +241,7 @@ function onPageShortcut(input: DesktopShortcutInput) {
   if (shortcut.command === "tabSwitcher")
     switcher.holding = shortcut.mods.find((m) => m !== "shift") ?? null;
   if (shortcut.command === "closeTab" && requestClose()) return;
+  if (shortcut.command === "newWindow" && requestNewChat()) return;
   emitCommand({
     command: shortcut.command,
     arg,

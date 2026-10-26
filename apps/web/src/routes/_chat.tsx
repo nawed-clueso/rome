@@ -30,6 +30,7 @@ import { stackedThreadToast, toastManager } from "~/components/ui/toast";
 import { primaryServerKeybindingsAtom } from "~/state/server";
 import { useThreadRouteTarget } from "../hooks/useThreadRouteTarget";
 import { CloseViewShortcut } from "../browser/rome/CloseViewShortcut";
+import { PageSwipeIndicator } from "../browser/rome/PageSwipeIndicator";
 import { BrowserEvents } from "../browser/ardia/BrowserEvents";
 import { ardiaAvailable } from "../browser/ardia/ardiaHostStore";
 import { ThreadTabsLifecycle } from "../browser/rome/ThreadTabsLifecycle";
@@ -133,16 +134,21 @@ function ChatRouteGlobalShortcuts() {
         return;
       }
 
+      // Cmd+T searches in a new tab; Cmd+N starts a new chat. Both are the New screen.
       if (command === "chat.newTab") {
         event.preventDefault();
         event.stopPropagation();
-        openNewScreenFromKey("chat");
+        openNewScreenFromKey(ardiaAvailable ? "browse" : "chat");
         return;
       }
 
       if (command === "chat.new") {
         event.preventDefault();
         event.stopPropagation();
+        if (ardiaAvailable) {
+          openNewScreenFromKey("chat");
+          return;
+        }
         if (!legacySidebarEnabled && projectGroupCount > 1) {
           openCommandPalette({ open: "new-thread-in" });
           return;
@@ -223,8 +229,12 @@ function ChatRouteGlobalShortcuts() {
 
   return (
     <>
-      <BrowserEvents onNewTab={() => openNewScreen("chat")} />
+      <BrowserEvents
+        onNewTab={() => openNewScreen("browse")}
+        onNewChat={() => openNewScreen("chat")}
+      />
       <CloseViewShortcut />
+      <PageSwipeIndicator />
       {ardiaAvailable ? <ThreadTabsLifecycle /> : null}
     </>
   );

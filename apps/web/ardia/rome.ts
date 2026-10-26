@@ -25,6 +25,23 @@ export function requestNewTab(windowId: string, target: NewTabTarget): boolean {
   return true;
 }
 
+let newChatHandler: (() => void) | null = null;
+
+/** Cmd+N on a page starts a chat in T3 Code instead of opening a browser window. */
+export function setNewChatHandler(handler: (() => void) | null): () => void {
+  newChatHandler = handler;
+  return () => {
+    if (newChatHandler === handler) newChatHandler = null;
+  };
+}
+
+/** True when T3 Code took the request. */
+export function requestNewChat(): boolean {
+  if (!newChatHandler) return false;
+  newChatHandler();
+  return true;
+}
+
 /** Hears every tab the user opens from the sidebar, so the app can show where it lives. */
 export function onTabOpened(listener: (tabId: string) => void): () => void {
   tabOpenedListeners.add(listener);

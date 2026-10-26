@@ -11,6 +11,7 @@ import * as Electron from "electron";
 import { type DesktopSnapShotEvent, DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
 
 import * as DesktopAssets from "../app/DesktopAssets.ts";
+import * as DesktopConfig from "../app/DesktopConfig.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import { makeComponentLogger } from "../app/DesktopObservability.ts";
 import * as DesktopState from "../app/DesktopState.ts";
@@ -27,6 +28,7 @@ import {
   WINDOW_FULLSCREEN_STATE_CHANNEL,
 } from "../ipc/channels.ts";
 import * as ArdiaGuests from "../ardia/ArdiaGuests.ts";
+import { ROME_TAB_ARGUMENT } from "../ardia/PageGestures.ts";
 import { PASSKEY_BRIDGE_ARGUMENT } from "../preview/GuestProtocol.ts";
 import * as PreviewManager from "../preview/Manager.ts";
 import * as PreviewPasskeys from "../preview/Passkeys.ts";
@@ -290,6 +292,7 @@ function bindFirstRevealTrigger(
 /** @public Service construction is part of the canonical Effect module API. */
 export const make = Effect.gen(function* () {
   const environment = yield* DesktopEnvironment.DesktopEnvironment;
+  const config = yield* DesktopConfig.DesktopConfig;
   const desktopState = yield* DesktopState.DesktopState;
   const assets = yield* DesktopAssets.DesktopAssets;
   const electronMenu = yield* ElectronMenu.ElectronMenu;
@@ -531,6 +534,7 @@ export const make = Effect.gen(function* () {
         webPreferences.additionalArguments = [
           ...(webPreferences.additionalArguments ?? []),
           ArdiaGuests.SIGN_IN_PERSONA,
+          ROME_TAB_ARGUMENT,
         ];
       }
       webPreferences.disableHtmlFullscreenWindowResize = true;
@@ -853,7 +857,7 @@ export const make = Effect.gen(function* () {
     });
 
     loadApplication();
-    if (environment.isDevelopment) {
+    if (environment.isDevelopment && !config.hiddenWindows) {
       window.webContents.openDevTools({ mode: "detach" });
     }
 
@@ -947,7 +951,7 @@ export const make = Effect.gen(function* () {
       void runPromise(Ref.set(splashWindowRef, Option.none()));
     });
     splash.once("ready-to-show", () => {
-      if (!splash.isDestroyed()) {
+      if (!splash.isDestroyed() && !(environment.isDevelopment && config.hiddenWindows)) {
         splash.show();
       }
     });

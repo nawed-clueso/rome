@@ -69,6 +69,8 @@ import {
 import { isElectron } from "../env";
 import {
   resolveShortcutCommand,
+  effectiveShortcutsForCommand,
+  formatShortcutLabel,
   shortcutLabelForCommand,
   shouldShowThreadJumpHintsForModifiers,
   threadJumpCommandForIndex,
@@ -2680,7 +2682,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     updateThreadJumpHintsVisibility(shouldShowJumpHintsNow);
   }, [shouldShowJumpHintsNow, updateThreadJumpHintsVisibility]);
 
-  // Same as Cmd+T: the New screen, starting in Chat.
+  // Same as Cmd+N: the New screen, starting in Chat.
   const handleNewThreadClick = () => {
     if (isMobile) setOpenMobile(false);
     useNewScreenStore.getState().setMode("chat");
@@ -2697,7 +2699,15 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     onThreadContextMenu: handleThreadContextMenu,
   };
 
-  const newThreadShortcutLabel = shortcutLabelForCommand(keybindings, "chat.newTab");
+  // New chat's first shortcut (Cmd+N); the list comes last binding first.
+  const newChatShortcut = effectiveShortcutsForCommand(keybindings, "chat.new", {
+    context: { terminalFocus: false, terminalOpen: false },
+  }).at(-1);
+  const newThreadShortcutLabel = ardiaAvailable
+    ? newChatShortcut
+      ? formatShortcutLabel(newChatShortcut)
+      : null
+    : shortcutLabelForCommand(keybindings, "chat.newTab");
   return (
     <>
       <ThreadContextDragGhost />

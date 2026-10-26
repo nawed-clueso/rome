@@ -12,6 +12,10 @@ export interface SplitGroup {
   readonly id: string;
   /** Scoped thread keys or tab keys (`splitTabKey`), top row first, each row left to right. */
   readonly rows: readonly (readonly string[])[];
+  /** Folded to its header in the sidebar. */
+  readonly collapsed?: boolean;
+  /** What the user called it; unnamed splits show as "Split view". */
+  readonly name?: string;
 }
 
 export type SplitSide = "left" | "right" | "top" | "bottom";
@@ -79,6 +83,9 @@ interface SplitViewState {
   readonly separate: (groupId: string) => void;
   readonly setColumnWeights: (weights: Readonly<Record<string, number>>) => void;
   readonly setRowWeights: (groupId: string, weights: readonly number[]) => void;
+  readonly setCollapsed: (groupId: string, collapsed: boolean) => void;
+  /** Names a split; a blank name goes back to "Split view". */
+  readonly rename: (groupId: string, name: string) => void;
 }
 
 const withoutMember = (groups: readonly SplitGroup[], threadKey: string): SplitGroup[] =>
@@ -135,6 +142,20 @@ export const useSplitViewStore = create<SplitViewState>()(
         set((state) => ({ columnWeights: { ...state.columnWeights, ...weights } })),
       setRowWeights: (groupId, weights) =>
         set((state) => ({ rowWeights: { ...state.rowWeights, [groupId]: weights } })),
+      setCollapsed: (groupId, collapsed) =>
+        set((state) => ({
+          groups: state.groups.map((group) =>
+            group.id === groupId ? { ...group, collapsed } : group,
+          ),
+        })),
+      rename: (groupId, name) =>
+        set((state) => ({
+          groups: state.groups.map((group) => {
+            if (group.id !== groupId) return group;
+            const { name: _old, ...rest } = group;
+            return name.trim() ? { ...rest, name: name.trim() } : rest;
+          }),
+        })),
     }),
     {
       name: "rome:split-view:v2",

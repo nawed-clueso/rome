@@ -461,6 +461,8 @@ contextBridge.exposeInMainWorld("ardiaDesktop", {
   onShortcut: (listener: (input: unknown) => void) =>
     subscribeArdia(ArdiaChannels.ARDIA_SHORTCUT_CHANNEL, listener),
   dia: (operation: string) => ipcRenderer.invoke(ArdiaChannels.ARDIA_DIA_CHANNEL, operation),
+  migrate: (operation: string, browserId?: string, profileId?: string) =>
+    ipcRenderer.invoke(ArdiaChannels.ARDIA_MIGRATE_CHANNEL, operation, browserId, profileId),
   suggest: (url: string) => ipcRenderer.invoke(ArdiaChannels.ARDIA_SUGGEST_CHANNEL, url),
   onExtensionTab: (listener: (request: unknown) => void) =>
     subscribeArdia(ArdiaChannels.ARDIA_EXTENSION_TAB_CHANNEL, listener),

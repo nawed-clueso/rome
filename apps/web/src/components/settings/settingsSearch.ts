@@ -250,6 +250,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     to: "/settings/appearance",
   },
   {
+    id: "browser-import",
+    title: "Import from another browser",
+    to: "/settings/appearance",
+    searchTerms: ["import arc dia chrome brave edge bookmarks history spaces pinned tabs migrate"],
+  },
+  {
     id: "address-bar",
     title: "Address bar",
     to: "/settings/appearance",

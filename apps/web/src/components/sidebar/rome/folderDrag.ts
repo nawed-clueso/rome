@@ -2,7 +2,7 @@ import { parseScopedThreadKey } from "@t3tools/client-runtime/environment";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useSyncExternalStore } from "react";
 
-import { useBrowserModel } from "../../../browser/rome/browserStore";
+import { browser, useBrowserModel } from "../../../browser/rome/browserStore";
 import { fileItem, unfileTab } from "../../../browser/rome/folderActions";
 import {
   type FolderItem,
@@ -24,6 +24,7 @@ import {
 //   data-folder-drop-item="<item>"  a row inside a folder: drop above or below it
 //   data-folder-drop-list           the space's loose tabs: out of folders
 //   data-folder-drop-tiles          the pinned tiles: out of folders, still pinned
+//   data-pinned-tile="<tab id>"     a pinned tile: its slot, to reorder the tiles
 
 export type FolderDrop =
   | { readonly kind: "into"; readonly folderId: string }
@@ -33,7 +34,8 @@ export type FolderDrop =
       readonly folderId: string | null;
     }
   | { readonly kind: "list" }
-  | { readonly kind: "tiles" };
+  /** Into the pinned tiles, before `before` (null for last). */
+  | { readonly kind: "tiles"; readonly before: string | null };
 
 export interface FolderDragState {
   readonly item: FolderItem;
@@ -106,8 +108,28 @@ function dropAt(
     return { drop: { kind: side, item: target, folderId: holder }, rect };
   }
   if (kind !== "tab") return null;
-  if (element.hasAttribute("data-folder-drop-tiles")) return { drop: { kind: "tiles" }, rect };
+  if (element.hasAttribute("data-folder-drop-tiles")) {
+    return { drop: { kind: "tiles", before: tileSlot(element, id, x, y) }, rect };
+  }
   return { drop: { kind: "list" }, rect };
+}
+
+/**
+ * Which tile the dragged tab would go before. The tiles already show the drop, so
+ * pointing at a tile takes its slot, and pointing at the dragged tab keeps it.
+ */
+function tileSlot(grid: HTMLElement, tabId: string, x: number, y: number): string | null {
+  const shown = [...grid.querySelectorAll<HTMLElement>("[data-pinned-tile]")].map(
+    (tile) => tile.dataset.pinnedTile!,
+  );
+  const over = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-pinned-tile]");
+  const target = over?.dataset.pinnedTile;
+  const at = shown.indexOf(tabId);
+  if (target === tabId || (!target && at >= 0)) return shown[at + 1] ?? null;
+  if (!target) return null;
+  const index = shown.indexOf(target);
+  if (at < 0 || index < at) return target;
+  return shown.slice(index + 1).find((id) => id !== tabId) ?? null;
 }
 
 function applyDrop(item: FolderItem, drop: FolderDrop) {
@@ -115,7 +137,9 @@ function applyDrop(item: FolderItem, drop: FolderDrop) {
   const { kind, id } = parseFolderItem(item);
   if (!spaceId) return;
   if (drop.kind === "list" || drop.kind === "tiles") {
-    if (kind === "tab") unfileTab(id, drop.kind === "tiles");
+    if (kind !== "tab") return;
+    unfileTab(id, drop.kind === "tiles");
+    if (drop.kind === "tiles") browser()?.moveTab(id, drop.before);
     return;
   }
   if (drop.kind === "into") {

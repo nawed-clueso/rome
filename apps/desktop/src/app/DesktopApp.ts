@@ -20,6 +20,8 @@ import * as DesktopWindow from "../window/DesktopWindow.ts";
 import * as PreviewPasskeys from "../preview/Passkeys.ts";
 import * as DesktopBackendPool from "../backend/DesktopBackendPool.ts";
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
+import * as DesktopInterfaceUpdates from "./DesktopInterfaceUpdates.ts";
+import * as DesktopWidevine from "./DesktopWidevine.ts";
 import * as DesktopLegacyLocalStorage from "./DesktopLegacyLocalStorage.ts";
 import * as DesktopLifecycle from "./DesktopLifecycle.ts";
 import * as DesktopLinuxUrlHandler from "./DesktopLinuxUrlHandler.ts";
@@ -174,9 +176,18 @@ const bootstrap = Effect.gen(function* () {
     scheme: ElectronProtocol.getDesktopScheme(environment.isDevelopment),
     ...(environment.isDevelopment
       ? { targetOrigin: Option.getOrThrow(environment.devServerUrl) }
-      : { assetDirectory: environment.clientAssetsDir }),
+      : {
+          assetDirectory: environment.clientAssetsDir,
+          overrideDirectory: DesktopInterfaceUpdates.interfaceDirectory(
+            environment.baseDir,
+            environment.path.join,
+          ),
+        }),
     clerkFrontendApiHostname: DesktopClerk.desktopClerkFrontendApiHostname,
   });
+  if (!environment.isDevelopment) {
+    yield* DesktopInterfaceUpdates.watchInterfaceUpdates(environment.baseDir);
+  }
   yield* installDesktopIpcHandlers();
   yield* logBootstrapInfo("bootstrap ipc handlers registered");
   // Before any window: the preload merges these items before the app reads storage.
@@ -314,6 +325,7 @@ const startup = Effect.gen(function* () {
     Effect.catchCause((cause) => fatalStartupCause("whenReady", cause)),
   );
   yield* logStartupInfo("app ready");
+  yield* DesktopWidevine.startWidevine;
   if (environment.platform === "linux") {
     const selectedBackend = yield* safeStorage.selectedStorageBackend;
     yield* logStartupInfo("safe storage ready", {
