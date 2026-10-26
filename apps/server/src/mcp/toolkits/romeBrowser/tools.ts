@@ -1,7 +1,13 @@
 import {
   OrchestratorMcpFailure,
   PreviewAutomationError,
+  RomeBrowserChangeResult,
+  RomeBrowserFolderInput,
+  RomeBrowserLayout,
   RomeBrowserOpenInput,
+  RomeBrowserSpaceInput,
+  RomeBrowserSplitInput,
+  RomeBrowserTabInput,
   RomeBrowserReadyTab,
   RomeBrowserTabsResult,
   RomeBrowserUseInput,
@@ -48,4 +54,55 @@ const BrowserUseTool = Tool.make("browser_use", {
   success: RomeBrowserReadyTab,
 }).annotate(Tool.Destructive, false);
 
-export const RomeBrowserToolkit = Toolkit.make(BrowserTabsTool, BrowserOpenTool, BrowserUseTool);
+const BrowserLayoutTool = Tool.make("browser_layout", {
+  ...shared,
+  description:
+    "See how the user's Rome browser is arranged: its spaces, every tab in this window, folders and split views, with the ids the other browser_* tools take.",
+  parameters: Tool.EmptyParams,
+  success: RomeBrowserLayout,
+})
+  .annotate(Tool.Readonly, true)
+  .annotate(Tool.Destructive, false);
+
+const BrowserTabTool = Tool.make("browser_tab", {
+  ...shared,
+  description:
+    "Manage the user's Rome tabs, any of them: focus, close, pin or unpin, navigate, go back or forward, reload, reorder, or move to another space. Only do what the user asked for.",
+  parameters: RomeBrowserTabInput,
+  success: RomeBrowserChangeResult,
+}).annotate(Tool.Destructive, true);
+
+const BrowserSplitTool = Tool.make("browser_split", {
+  ...shared,
+  description:
+    "Arrange split views in Rome: show tabs or chats beside a chat, take them out, end a split or name it. Up to two rows of three.",
+  parameters: RomeBrowserSplitInput,
+  success: RomeBrowserChangeResult,
+}).annotate(Tool.Destructive, false);
+
+const BrowserFolderTool = Tool.make("browser_folder", {
+  ...shared,
+  description:
+    "Manage folders in Rome's sidebar: create, rename, file tabs, chats or folders into one, take them out, collapse, ungroup or delete (which closes its tabs).",
+  parameters: RomeBrowserFolderInput,
+  success: RomeBrowserChangeResult,
+}).annotate(Tool.Destructive, true);
+
+const BrowserSpaceTool = Tool.make("browser_space", {
+  ...shared,
+  description:
+    "Manage Rome's spaces: switch to one, create one, change its name, icon or colour, or move chats into a space.",
+  parameters: RomeBrowserSpaceInput,
+  success: RomeBrowserChangeResult,
+}).annotate(Tool.Destructive, false);
+
+export const RomeBrowserToolkit = Toolkit.make(
+  BrowserTabsTool,
+  BrowserOpenTool,
+  BrowserUseTool,
+  BrowserLayoutTool,
+  BrowserTabTool,
+  BrowserSplitTool,
+  BrowserFolderTool,
+  BrowserSpaceTool,
+);

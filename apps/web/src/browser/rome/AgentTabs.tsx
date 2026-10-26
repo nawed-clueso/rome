@@ -5,10 +5,16 @@ import {
 } from "@t3tools/client-runtime/environment";
 import {
   type EnvironmentId,
+  type RomeBrowserChangeResult,
+  type RomeBrowserFolderInput,
+  type RomeBrowserLayout,
   type RomeBrowserOperation,
   type RomeBrowserReadyTab,
   type RomeBrowserRequest,
+  type RomeBrowserSpaceInput,
+  type RomeBrowserSplitInput,
   type RomeBrowserTab,
+  type RomeBrowserTabInput,
   ThreadId,
 } from "@t3tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
@@ -19,9 +25,18 @@ import { previewEnvironment } from "~/state/preview";
 import { primaryEnvironmentIdAtom } from "~/state/primaryEnvironment";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { noteAgentInput } from "./agentActivityStore";
+import {
+  changeFolder,
+  changeSpace,
+  changeSplit,
+  changeTabs,
+  describeLayout,
+  type LayoutContext,
+} from "./agentLayout";
 import { browser, useBrowserModel } from "./browserStore";
 import { useTabMentionStore } from "./tabMentionStore";
 import { spaceOfThread, useThreadSpaceStore } from "./threadSpaceStore";
+import { useShowTab } from "./useShowTab";
 
 type AgentTabBridge = {
   agentTab?(
@@ -100,7 +115,9 @@ const inactiveAtom = Atom.make(() => undefined);
  * (snapshot, click, type, evaluate…) work on the real tab, signed in as you. A
  * tab is a chat's when it was opened from the chat or @-mentioned in it, and is
  * shared with that chat only. Also answers the agent's browser_tabs,
- * browser_open and browser_use for chats whose space is in this window.
+ * browser_open and browser_use for chats whose space is in this window, and
+ * the browser_layout, browser_tab, browser_split, browser_folder and
+ * browser_space tools that arrange the sidebar.
  */
 export function AgentTabs() {
   const environmentId = useAtomValue(primaryEnvironmentIdAtom);
@@ -109,6 +126,7 @@ export function AgentTabs() {
   const respond = useAtomCommand(previewEnvironment.browserRespond, { reportFailure: false });
   const tabs = useBrowserModel((state) => state.browser?.tabs ?? null);
   const mentionedIn = useTabMentionStore((state) => state.mentionedIn);
+  const showTab = useShowTab();
   useAtomValue(
     environmentId && desktop?.agentTab ? browserRequestsAtom(environmentId) : inactiveAtom,
   );
@@ -229,10 +247,19 @@ export function AgentTabs() {
     holder: string,
     threadId: string,
     spaceId: string,
-  ): Promise<{ tabs: RomeBrowserTab[] } | RomeBrowserReadyTab> => {
+  ): Promise<
+    { tabs: RomeBrowserTab[] } | RomeBrowserReadyTab | RomeBrowserLayout | RomeBrowserChangeResult
+  > => {
     const actions = browser();
     const model = useBrowserModel.getState().browser;
-    if (!actions || !model) throw new Error("Rome's browser hasn't loaded yet.");
+    if (!actions || !model || !environmentId) throw new Error("Rome's browser hasn't loaded yet.");
+    // The tool's schema checked the input on the server.
+    const layout: LayoutContext = { environmentId, holder, spaceId, showTab };
+    if (operation === "layout") return describeLayout(layout);
+    if (operation === "tab") return changeTabs(input as RomeBrowserTabInput, layout);
+    if (operation === "split") return changeSplit(input as RomeBrowserSplitInput, layout);
+    if (operation === "folder") return changeFolder(input as RomeBrowserFolderInput, layout);
+    if (operation === "space") return changeSpace(input as RomeBrowserSpaceInput, layout);
     const mentions = useTabMentionStore.getState().mentionedIn;
     if (operation === "tabs") {
       const spaceNames = new Map(model.spaces.map((space) => [space.id, space.name]));

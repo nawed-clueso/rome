@@ -1,5 +1,7 @@
 import {
   OrchestratorMcpFailure,
+  RomeBrowserChangeResult,
+  RomeBrowserLayout,
   RomeBrowserReadyTab,
   RomeBrowserTabsResult,
   type RomeBrowserOperation,
@@ -41,4 +43,15 @@ export const layer = McpToolAccess.toLayer(RomeBrowserToolkit, {
   browser_tabs: McpToolAccess.readsAsCaller(() => ask(RomeBrowserTabsResult, "tabs", {})),
   browser_open: McpToolAccess.actsAsCaller((input) => ask(RomeBrowserReadyTab, "open", input)),
   browser_use: McpToolAccess.actsAsCaller((input) => ask(RomeBrowserReadyTab, "use", input)),
+  browser_layout: McpToolAccess.readsAsCaller(() => ask(RomeBrowserLayout, "layout", {})),
+  browser_tab: McpToolAccess.actsAsCaller((input) => ask(RomeBrowserChangeResult, "tab", input)),
+  browser_split: McpToolAccess.actsAsCaller((input) =>
+    ask(RomeBrowserChangeResult, "split", input),
+  ),
+  browser_folder: McpToolAccess.actsAsCaller((input) =>
+    ask(RomeBrowserChangeResult, "folder", input),
+  ),
+  browser_space: McpToolAccess.actsAsCaller((input) =>
+    ask(RomeBrowserChangeResult, "space", input),
+  ),
 });

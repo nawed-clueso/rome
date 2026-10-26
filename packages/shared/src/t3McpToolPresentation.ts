@@ -308,6 +308,15 @@ const T3_MCP_TOOLS: Readonly<Record<string, T3McpToolDefinition>> = {
   browser_tabs: tool(["List", "Listing", "Listed", "browser tabs"], "browser", "browser"),
   browser_open: tool(["Open", "Opening", "Opened", "a browser tab"], "browser", "browser"),
   browser_use: tool(["Use", "Using", "Used", "a browser tab"], "browser", "browser"),
+  browser_layout: tool(["Read", "Reading", "Read", "the browser layout"], "browser", "browser"),
+  browser_tab: tool(["Arrange", "Arranging", "Arranged", "browser tabs"], "browser", "browser"),
+  browser_split: tool(["Arrange", "Arranging", "Arranged", "a split view"], "browser", "browser"),
+  browser_folder: tool(
+    ["Arrange", "Arranging", "Arranged", "browser folders"],
+    "browser",
+    "browser",
+  ),
+  browser_space: tool(["Arrange", "Arranging", "Arranged", "browser spaces"], "browser", "browser"),
   t3_environment_read: tool(
     ["Read", "Reading", "Read", "environment preferences"],
     "environment-read",

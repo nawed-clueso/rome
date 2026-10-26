@@ -28,9 +28,15 @@ export function unfileTab(tabId: string, keepPinned: boolean) {
   browser()?.setPinned(tabId, keepPinned);
 }
 
+/** Closes a tab for good: a pinned tab only unloads when closed, as Arc's do, so it's unpinned first. */
+export function closeTabForGood(tabId: string) {
+  browser()?.setPinned(tabId, false);
+  browser()?.closeTab(tabId);
+}
+
 export function closeFolderTab(tabId: string) {
   useFolderStore.getState().release(folderItem.tab(tabId));
-  browser()?.closeTab(tabId);
+  closeTabForGood(tabId);
 }
 
 /** Makes a folder in the current space, holding `items` if given; returns its id. */
@@ -65,5 +71,5 @@ export function ungroupFolder(folderId: string) {
 /** Deletes a folder with its subfolders and closes the tabs in them; its chats go back to the list. */
 export function deleteFolder(folderId: string) {
   const tabs = useFolderStore.getState().remove(folderId);
-  for (const tabId of tabs) browser()?.closeTab(tabId);
+  for (const tabId of tabs) closeTabForGood(tabId);
 }

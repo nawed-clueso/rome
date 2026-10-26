@@ -115,7 +115,8 @@ type Draft = { folders: Record<string, RomeFolder>; roots: Record<string, readon
 
 /** Takes `item` out of the folder (or top level) that holds it. */
 function detach(draft: Draft, item: FolderItem) {
-  const holder = filedItems(draft.folders).get(item);
+  // Searched, not indexed: the draft changes after this, and an index would be cached on it.
+  const holder = Object.values(draft.folders).find((folder) => folder.items.includes(item))?.id;
   if (holder) {
     const folder = draft.folders[holder]!;
     draft.folders[holder] = { ...folder, items: folder.items.filter((other) => other !== item) };
