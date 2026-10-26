@@ -28,6 +28,10 @@ type ArdiaDesktopBridge = {
   dia?(operation: DesktopDiaOperation): Promise<DesktopDiaReply>;
   /** Reads another browser's spaces, favourites and history; see apps/desktop/src/ardia/BrowserMigration.ts. */
   migrate?(operation: "list" | "read", browserId?: string, profileId?: string): Promise<unknown>;
+  /** Opens or focuses another browser window ("main" focuses the main one), or lists them. */
+  windows?(operation: "open" | "focus" | "list", romeWindowId?: string): Promise<unknown>;
+  /** In the main window: another browser window closed, by its id. */
+  onWindowClosed?(listener: (romeWindowId: string) => void): () => void;
   /** Fetches a search engine's suggestions, which the page itself may not (CORS). */
   suggest?(url: string): Promise<{ ok: boolean; text: string }>;
   /** Shows or hides the macOS window buttons. */

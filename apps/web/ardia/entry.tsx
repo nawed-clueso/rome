@@ -18,6 +18,7 @@ import { attachPool } from "./shims/web/webviewPool";
 import { requestSidebarToggle } from "./rome";
 import { startPictures } from "./rome/model";
 import { startHistory } from "./rome/search";
+import { startWindows } from "./rome/windows";
 
 export {
   onSidebarToggle,
@@ -55,6 +56,7 @@ export {
 } from "./rome/model";
 export type { RomeBrowser, RomeSpace, RomeTab, SavedTab } from "./rome/model";
 export { onPageSwipe } from "./rome/pageSwipe";
+export { openSpaceInNewWindow, wasHandedOff } from "./rome/windows";
 export type { PageSwipe, PageSwipeAction } from "./rome/pageSwipe";
 export { addressFor, importVisits, searchEngineName, suggest } from "./rome/search";
 export type { Suggestion } from "./rome/search";
@@ -66,6 +68,7 @@ startNativeSync();
 startTabLifecycle();
 startHistory();
 startPictures();
+startWindows();
 if (!useBrowser.getState().windowOrder.length) useBrowser.getState().createWindow();
 useBrowser.setState({ toggleSidebar: requestSidebarToggle });
 

@@ -461,6 +461,15 @@ contextBridge.exposeInMainWorld("ardiaDesktop", {
   onShortcut: (listener: (input: unknown) => void) =>
     subscribeArdia(ArdiaChannels.ARDIA_SHORTCUT_CHANNEL, listener),
   dia: (operation: string) => ipcRenderer.invoke(ArdiaChannels.ARDIA_DIA_CHANNEL, operation),
+  windows: (operation: "open" | "focus" | "list", romeWindowId?: string) =>
+    ipcRenderer.invoke(ArdiaChannels.ROME_WINDOWS_CHANNEL, operation, romeWindowId),
+  onWindowClosed: (listener: (romeWindowId: string) => void) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, id: unknown) => {
+      if (typeof id === "string") listener(id);
+    };
+    ipcRenderer.on(ArdiaChannels.ROME_WINDOW_CLOSED_CHANNEL, wrapped);
+    return () => void ipcRenderer.removeListener(ArdiaChannels.ROME_WINDOW_CLOSED_CHANNEL, wrapped);
+  },
   migrate: (operation: string, browserId?: string, profileId?: string) =>
     ipcRenderer.invoke(ArdiaChannels.ARDIA_MIGRATE_CHANNEL, operation, browserId, profileId),
   suggest: (url: string) => ipcRenderer.invoke(ArdiaChannels.ARDIA_SUGGEST_CHANNEL, url),

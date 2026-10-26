@@ -12,6 +12,7 @@ import { type DesktopSnapShotEvent, DEFAULT_CLIENT_SETTINGS } from "@t3tools/con
 
 import * as DesktopAssets from "../app/DesktopAssets.ts";
 import * as DesktopConfig from "../app/DesktopConfig.ts";
+import { ROME_WINDOW_CLOSED_CHANNEL } from "../ardia/channels.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import { makeComponentLogger } from "../app/DesktopObservability.ts";
 import * as DesktopState from "../app/DesktopState.ts";
@@ -118,6 +119,12 @@ export class DesktopWindow extends Context.Service<
     readonly zoomMain: (direction: MainWindowZoomDirection) => Effect.Effect<void>;
     readonly runMainContentsCommand: (command: MainWindowContentsCommand) => Effect.Effect<void>;
     readonly syncAppearance: Effect.Effect<void>;
+    /** Opens a browser window showing Rome browser window `romeWindowId`, or brings it forward. */
+    readonly openRomeWindow: (romeWindowId: string) => Effect.Effect<boolean>;
+    /** Brings a browser window forward ("main" for the main window); false when it isn't open. */
+    readonly focusRomeWindow: (romeWindowId: string) => Effect.Effect<boolean>;
+    /** The Rome browser windows open besides the main one. */
+    readonly romeWindowIds: Effect.Effect<readonly string[]>;
   }
 >()("@t3tools/desktop/window/DesktopWindow") {}
 
@@ -351,13 +358,17 @@ export const make = Effect.gen(function* () {
     yield* previewManager.reapplyZoom();
   });
 
-  const createWindow = Effect.fn("desktop.window.createWindow")(function* (): Effect.fn.Return<
-    Option.Option<Electron.BrowserWindow>,
-    DesktopWindowError
-  > {
+  // Rome's browser windows besides the main one, by the browser window each shows.
+  const romeWindows = new Map<string, Electron.BrowserWindow>();
+
+  const createWindow = Effect.fn("desktop.window.createWindow")(function* (secondary?: {
+    readonly romeWindowId: string;
+  }): Effect.fn.Return<Option.Option<Electron.BrowserWindow>, DesktopWindowError> {
     if (yield* Ref.get(desktopState.quitting)) return Option.none();
     yield* previewManager.getBrowserSession();
-    const applicationUrl = getDesktopUrl(environment.isDevelopment);
+    const applicationUrl = secondary
+      ? `${getDesktopUrl(environment.isDevelopment)}?romeWindow=${encodeURIComponent(secondary.romeWindowId)}`
+      : getDesktopUrl(environment.isDevelopment);
     const iconPaths = yield* assets.iconPaths;
     const iconOption = getIconOption(iconPaths, environment.platform);
     const shouldUseDarkColors = yield* electronTheme.shouldUseDarkColors;
@@ -385,8 +396,15 @@ export const make = Effect.gen(function* () {
       yield* logWindowWarning("saved main window bounds could not be restored; using defaults");
     }
     if (yield* Ref.get(desktopState.quitting)) return Option.none();
+    // Another browser window opens just below and right of the main one.
+    const mainBounds = secondary
+      ? Option.map(yield* currentMainWindow, (main) => main.getBounds())
+      : Option.none();
     const window = yield* electronWindow.create({
-      ...initialBounds,
+      ...Option.match(mainBounds, {
+        onNone: () => initialBounds,
+        onSome: (bounds) => ({ ...bounds, x: bounds.x + 28, y: bounds.y + 28 }),
+      }),
       minWidth: 840,
       minHeight: 620,
       show: false,
@@ -424,7 +442,9 @@ export const make = Effect.gen(function* () {
     }
     let boundsPersistFiber: Fiber.Fiber<void, never> | undefined;
     let pendingBoundsPersistFiber: Fiber.Fiber<void, never> | undefined;
-    let boundsPersistenceEnabled = persistedBounds === null || restoredPersistedBounds;
+    // Only the main window's size and place are remembered.
+    let boundsPersistenceEnabled =
+      !secondary && (persistedBounds === null || restoredPersistedBounds);
     const readPersistableBounds = (): DesktopAppSettings.DesktopWindowBounds | null => {
       if (window.isDestroyed()) {
         return null;
@@ -463,6 +483,7 @@ export const make = Effect.gen(function* () {
       return pendingBoundsPersistFiber;
     };
     const scheduleBoundsPersist = () => {
+      if (secondary) return;
       if (!boundsPersistenceEnabled) {
         const currentBounds = readPersistableBounds();
         if (
@@ -507,9 +528,10 @@ export const make = Effect.gen(function* () {
         fiber === undefined ? Effect.void : Fiber.join(fiber).pipe(Effect.asVoid),
       ),
     );
-    flushMainWindowBounds = flushBoundsPersist;
-
-    yield* previewManager.setMainWindow(window);
+    if (!secondary) {
+      flushMainWindowBounds = flushBoundsPersist;
+      yield* previewManager.setMainWindow(window);
+    }
     if (yield* Ref.get(desktopState.quitting)) {
       yield* electronWindow.destroyAll;
       return Option.none();
@@ -850,21 +872,36 @@ export const make = Effect.gen(function* () {
       if (!window.isDestroyed()) {
         window.webContents.setBackgroundThrottling(true);
       }
-      if (persistedSettings.mainWindowMaximized) {
+      if (!secondary && persistedSettings.mainWindowMaximized) {
         window.maximize();
       }
       void runPromise(Effect.andThen(electronWindow.reveal(window), dismissConnectingSplash));
     });
 
     loadApplication();
-    if (environment.isDevelopment && !config.hiddenWindows) {
+    if (environment.isDevelopment && !config.hiddenWindows && !secondary) {
       window.webContents.openDevTools({ mode: "detach" });
     }
 
     window.on("closed", () => {
       clearDevelopmentLoadRetry();
       clearBoundsPersist();
-      void runPromise(electronWindow.clearMain(Option.some(window)));
+      if (!secondary) {
+        void runPromise(electronWindow.clearMain(Option.some(window)));
+        return;
+      }
+      romeWindows.delete(secondary.romeWindowId);
+      // Its tabs go back to the main window, unless the app is quitting: then
+      // the window reopens with them next launch.
+      void runPromise(
+        Effect.gen(function* () {
+          if (yield* Ref.get(desktopState.quitting)) return;
+          const main = yield* currentMainWindow;
+          if (Option.isSome(main) && !main.value.isDestroyed()) {
+            main.value.webContents.send(ROME_WINDOW_CLOSED_CHANNEL, secondary.romeWindowId);
+          }
+        }),
+      );
     });
 
     return Option.some(window);
@@ -878,6 +915,37 @@ export const make = Effect.gen(function* () {
     }
     return window;
   }).pipe(Effect.withSpan("desktop.window.createMain"));
+
+  const openRomeWindow = Effect.fn("desktop.window.openRomeWindow")(
+    function* (romeWindowId: string) {
+      const open = romeWindows.get(romeWindowId);
+      if (open && !open.isDestroyed()) {
+        yield* electronWindow.reveal(open);
+        return true;
+      }
+      const window = yield* createWindow({ romeWindowId });
+      if (Option.isNone(window)) return false;
+      romeWindows.set(romeWindowId, window.value);
+      return true;
+    },
+    Effect.catch((error) =>
+      logWindowWarning("failed to open browser window", { message: error.message }).pipe(
+        Effect.as(false),
+      ),
+    ),
+  );
+
+  const focusRomeWindow = Effect.fn("desktop.window.focusRomeWindow")(function* (
+    romeWindowId: string,
+  ) {
+    const window =
+      romeWindowId === "main"
+        ? Option.getOrUndefined(yield* currentMainWindow)
+        : romeWindows.get(romeWindowId);
+    if (!window || window.isDestroyed()) return false;
+    yield* electronWindow.reveal(window);
+    return true;
+  });
 
   const ensureMain = Effect.gen(function* () {
     if (yield* Ref.get(desktopState.quitting)) return Option.none<Electron.BrowserWindow>();
@@ -1062,6 +1130,9 @@ export const make = Effect.gen(function* () {
       else if (command === "forceReload") webContents.reloadIgnoringCache();
       else webContents.toggleDevTools();
     }),
+    openRomeWindow,
+    focusRomeWindow,
+    romeWindowIds: Effect.sync(() => [...romeWindows.keys()]),
     syncAppearance: Effect.gen(function* () {
       const shouldUseDarkColors = yield* electronTheme.shouldUseDarkColors;
       yield* electronWindow.syncAllAppearance((window) =>

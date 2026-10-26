@@ -11,3 +11,5 @@ export const ARDIA_SNAPSHOT_CHANNEL = "desktop:ardia-snapshot";
 export const ARDIA_AUDIBLE_CHANNEL = "desktop:ardia-audible";
 export const ARDIA_WINDOW_CONTROLS_CHANNEL = "desktop:ardia-window-controls";
 export const ARDIA_MIGRATE_CHANNEL = "desktop:ardia-migrate";
+export const ROME_WINDOWS_CHANNEL = "desktop:rome-windows";
+export const ROME_WINDOW_CLOSED_CHANNEL = "desktop:rome-window-closed";

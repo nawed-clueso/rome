@@ -53,7 +53,15 @@ declare module "@t3-ardia/entry" {
     order: Record<string, string[]>;
     active: Record<string, string>;
     saved: Record<string, SavedTab[]>;
+    /** Spaces open in another app window, by that window ("main" for the main one). */
+    elsewhere: Record<string, string>;
+    /** Spaces this window could move to a new window; empty while it has only one. */
+    newWindowSpaces: string[];
   };
+  /** Moves a space and its tabs into a new app window; false when it can't. */
+  export function openSpaceInNewWindow(spaceId: string): boolean;
+  /** Whether a tab left this window for another app window, rather than closing. */
+  export function wasHandedOff(tabId: string): boolean;
   export function watchBrowser(listener: (browser: RomeBrowser) => void): () => void;
   export function setBrowsingFor(threadKey: string | null): void;
   export function activateTab(tabId: string): void;

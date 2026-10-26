@@ -31,13 +31,30 @@ let history: Visit[] = (() => {
   }
 })();
 
+// Every app window records visits, so a save folds in what the others saved.
+const withStored = (mine: Visit[]): Visit[] => {
+  let stored: Visit[] = [];
+  try {
+    stored = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]") as Visit[];
+  } catch {}
+  const byPage = new Map(mine.map((visit) => [`${visit.spaceId} ${visit.url}`, visit]));
+  for (const visit of stored) {
+    const key = `${visit.spaceId} ${visit.url}`;
+    const own = byPage.get(key);
+    if (!own) byPage.set(key, visit);
+    else if (visit.lastVisit > own.lastVisit)
+      byPage.set(key, { ...visit, visits: Math.max(visit.visits, own.visits) });
+  }
+  return [...byPage.values()].toSorted((a, b) => b.lastVisit - a.lastVisit).slice(0, HISTORY_LIMIT);
+};
+
 let saveTimer = 0;
 const save = () => {
   window.clearTimeout(saveTimer);
-  saveTimer = window.setTimeout(
-    () => localStorage.setItem(HISTORY_KEY, JSON.stringify(history)),
-    1000,
-  );
+  saveTimer = window.setTimeout(() => {
+    history = withStored(history);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  }, 1000);
 };
 
 const isPage = (url: string) => /^https?:\/\//i.test(url);

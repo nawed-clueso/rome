@@ -99,6 +99,9 @@ function layerDesktopWindow(
     zoomMain: () => Effect.void,
     runMainContentsCommand: () => Effect.void,
     syncAppearance: Effect.void,
+    openRomeWindow: () => Effect.succeed(false),
+    focusRomeWindow: () => Effect.succeed(false),
+    romeWindowIds: Effect.succeed([]),
   });
 }
 

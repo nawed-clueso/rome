@@ -8,6 +8,13 @@ import { wantsPage } from "@ardia-app/lib/tabPages";
 import { lastPicture, startTabPictures } from "@ardia-app/lib/tabPictures";
 import { wake } from "@ardia-app/store/model";
 import { desktop } from "../bridge";
+import {
+  onWindowsChanged,
+  otherWindowSpaces,
+  showSpaceElsewhere,
+  spacesForNewWindow,
+  wasHandedOff,
+} from "./windows";
 import { knownFavicon, pageEngine, setParked, showPageAt } from "../shims/web/webviewPool";
 
 // The browser as T3 Code's own UI sees it: spaces, tabs and which thread each tab
@@ -56,6 +63,10 @@ export type RomeBrowser = {
   active: Record<string, string>;
   /** Tabs put away with their settled thread, by thread key. */
   saved: Record<string, SavedTab[]>;
+  /** Spaces open in another app window, by that window ("main" for the main one). */
+  elsewhere: Record<string, string>;
+  /** Spaces this window could move to a new window; empty while it has only one. */
+  newWindowSpaces: string[];
 };
 
 const OWNERS_KEY = "rome:tab-owners:v1";
@@ -75,8 +86,29 @@ let saved: Record<string, SavedTab[]> = read(SAVED_KEY, {});
 let browsingFor: string | null = null;
 let revision = 0;
 
+// Every app window keeps these maps, each for its own tabs and threads, so a save
+// lays this window's entries over what's stored and drops only what it removed.
+const dropped = { owners: new Set<string>(), saved: new Set<string>() };
+const dropOwner = (tabId: string) => {
+  delete owners[tabId];
+  dropped.owners.add(tabId);
+};
+const dropSaved = (threadKey: string) => {
+  const { [threadKey]: _, ...rest } = saved;
+  saved = rest;
+  dropped.saved.add(threadKey);
+};
+const merged = <T>(key: string, mine: Record<string, T>, gone: Set<string>) => {
+  const next = { ...read<Record<string, T>>(key, {}), ...mine };
+  for (const id of gone) delete next[id];
+  gone.clear();
+  return next;
+};
+
 const persist = () => {
   revision += 1;
+  owners = merged(OWNERS_KEY, owners, dropped.owners);
+  saved = merged(SAVED_KEY, saved, dropped.saved);
   localStorage.setItem(OWNERS_KEY, JSON.stringify(owners));
   localStorage.setItem(SAVED_KEY, JSON.stringify(saved));
   notify();
@@ -157,7 +189,17 @@ function snapshot(s: BrowserState): RomeBrowser {
       owner: tab.pinned ? null : (owners[tab.id] ?? null),
     };
   }
-  return { windowId, spaceId: window?.profileId ?? null, spaces, tabs, order, active, saved };
+  return {
+    windowId,
+    spaceId: window?.profileId ?? null,
+    spaces,
+    tabs,
+    order,
+    active,
+    saved,
+    elsewhere: otherWindowSpaces(),
+    newWindowSpaces: spacesForNewWindow(),
+  };
 }
 
 // Rebuilt only when something it reads changed.
@@ -193,6 +235,17 @@ function start() {
   if (started) return;
   started = true;
   let known = new Set(Object.keys(store().tabs));
+  onWindowsChanged(() => {
+    revision += 1;
+    notify();
+  });
+  window.addEventListener("storage", (event) => {
+    if (event.key !== OWNERS_KEY && event.key !== SAVED_KEY) return;
+    owners = read(OWNERS_KEY, {});
+    saved = read(SAVED_KEY, {});
+    revision += 1;
+    notify();
+  });
   useBrowser.subscribe((s, prev) => {
     if (s.tabs !== prev.tabs) {
       let changed = false;
@@ -206,9 +259,12 @@ function start() {
           changed = true;
         }
       }
+      // Only this window's closed tabs: the others' tabs were never here, and tabs
+      // handed to another window are still open there.
       for (const id of Object.keys(owners)) {
-        if (!s.tabs[id] || s.tabs[id]!.pinned) {
-          delete owners[id];
+        const gone = known.has(id) && !s.tabs[id] && !wasHandedOff(id);
+        if (gone || s.tabs[id]?.pinned) {
+          dropOwner(id);
           changed = true;
         }
       }
@@ -260,6 +316,8 @@ export function moveTab(tabId: string, beforeId: string | null) {
 }
 
 export function switchSpace(spaceId: string) {
+  // A space open in another window brings that window forward instead.
+  if (showSpaceElsewhere(spaceId)) return;
   const s = store();
   const windowId = focusedWindow(s);
   if (windowId && s.profiles[spaceId]) s.switchProfile(windowId, spaceId);
@@ -291,7 +349,7 @@ export function putAwayThreadTabs(threadKey: string) {
     return { url: tab.url, title: pageTitle(tab), favicon: faviconOf(tab), spaceId: tab.profileId };
   });
   saved = { ...saved, [threadKey]: [...(saved[threadKey] ?? []), ...kept] };
-  for (const id of ids) delete owners[id];
+  for (const id of ids) dropOwner(id);
   s.closeTabs(ids);
   persist();
 }
@@ -300,8 +358,7 @@ export function putAwayThreadTabs(threadKey: string) {
 export function bringBackThreadTabs(threadKey: string, focusUrl?: string): string | null {
   const tabs = saved[threadKey];
   if (!tabs?.length) return null;
-  const { [threadKey]: _, ...rest } = saved;
-  saved = rest;
+  dropSaved(threadKey);
   let focused: string | null = null;
   for (const tab of tabs) {
     const id = openTab(tab.url, {
@@ -319,9 +376,8 @@ export function bringBackThreadTabs(threadKey: string, focusUrl?: string): strin
 export function forgetThreadTabs(threadKey: string) {
   const owned = Object.keys(owners).filter((id) => owners[id] === threadKey);
   if (!owned.length && !saved[threadKey]) return;
-  for (const id of owned) delete owners[id];
-  const { [threadKey]: _, ...rest } = saved;
-  saved = rest;
+  for (const id of owned) dropOwner(id);
+  dropSaved(threadKey);
   persist();
 }
 

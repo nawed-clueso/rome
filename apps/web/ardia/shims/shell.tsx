@@ -11,6 +11,7 @@ import { unstable_batchedUpdates } from "react-dom";
 import { emitNativeEvent, provideNativeModule } from "./expo-modules-core";
 import { NATIVE_CHANGE } from "./react-native";
 import { askConfirm, askText } from "./web/dialogs";
+import { readSession, SESSION_DOCUMENT, writeSession } from "../rome/sessionSlices";
 
 export * from "@ardia-real/shell";
 export { Symbol } from "./web/Symbol";
@@ -48,12 +49,17 @@ provideNativeModule("ArdiaApp", { launchEnvironment: () => null, systemInfo: () 
 provideNativeModule("ArdiaCalendar", { authorizationStatus: () => "notDetermined" });
 
 // session.json and friends. The renderer's localStorage is per app profile, so the
-// browser state is shared by every thread and survives restarts.
+// browser state is shared by every thread and survives restarts. session.json is
+// split between app windows (rome/sessionSlices.ts).
 const DOCUMENT_PREFIX = "ardia:document:";
 const storage = typeof localStorage === "undefined" ? null : localStorage;
-export const readDocument = (name: string) => storage?.getItem(DOCUMENT_PREFIX + name) ?? null;
+export const readDocument = (name: string) => {
+  if (name === SESSION_DOCUMENT && storage) return readSession();
+  return storage?.getItem(DOCUMENT_PREFIX + name) ?? null;
+};
 export const writeDocument = (name: string, contents: string) => {
   try {
+    if (name === SESSION_DOCUMENT && storage) return writeSession(contents);
     storage?.setItem(DOCUMENT_PREFIX + name, contents);
   } catch (error) {
     console.warn(`[ardia] could not save ${name}`, error);

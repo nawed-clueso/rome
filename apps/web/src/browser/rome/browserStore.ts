@@ -5,6 +5,7 @@ import { create } from "zustand";
 import { ardiaAvailable, loadArdia } from "../ardia/ardiaHostStore";
 import { splitTabKey, useSplitViewStore } from "../../splitViewStore";
 import { folderItem, useFolderStore } from "./folderStore";
+import { syncStoresAcrossWindows } from "./windowSync";
 
 /** The browser's spaces and tabs as the app's own UI draws them; null until it loads. */
 export const useBrowserModel = create<{ readonly browser: RomeBrowser | null }>()(() => ({
@@ -20,15 +21,17 @@ let started = false;
 export function startBrowserModel() {
   if (started || !ardiaAvailable) return;
   started = true;
+  syncStoresAcrossWindows();
   void loadArdia().then((module) => {
     actions = module;
     module.watchBrowser((model) => {
       const before = useBrowserModel.getState().browser;
       useBrowserModel.setState({ browser: model });
-      // A closed tab leaves its folder and its split; another window's tabs don't count.
+      // A closed tab leaves its folder and its split; another window's tabs don't
+      // count, nor do tabs that moved to another app window.
       if (!before || before.windowId === null || before.windowId !== model.windowId) return;
       for (const id of Object.keys(before.tabs)) {
-        if (model.tabs[id]) continue;
+        if (model.tabs[id] || module.wasHandedOff(id)) continue;
         useFolderStore.getState().release(folderItem.tab(id));
         useSplitViewStore.getState().leave(splitTabKey(id));
       }
@@ -73,6 +76,11 @@ export function switchSpaceAnimated(spaceId: string) {
   const model = useBrowserModel.getState().browser;
   const actions = browser();
   if (!model || !actions || model.spaceId === spaceId) return;
+  // A space open in another window brings that window forward; nothing slides here.
+  if (model.elsewhere[spaceId]) {
+    actions.switchSpace(spaceId);
+    return;
+  }
   const from = model.spaces.findIndex((space) => space.id === model.spaceId);
   const to = model.spaces.findIndex((space) => space.id === spaceId);
   const direction = to > from ? 1 : -1;

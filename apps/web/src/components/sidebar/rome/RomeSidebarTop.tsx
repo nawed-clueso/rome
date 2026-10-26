@@ -1,7 +1,7 @@
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import type { RomeSpace, RomeTab } from "@t3-ardia/entry";
 import { useLocation, useNavigate } from "@tanstack/react-router";
-import { ChevronDownIcon, PlusIcon } from "lucide-react";
+import { AppWindowIcon, ChevronDownIcon, PlusIcon } from "lucide-react";
 import { useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
 
@@ -31,6 +31,9 @@ import {
   MenuItem,
   MenuRadioItem,
   MenuSeparator,
+  MenuSub,
+  MenuSubPopup,
+  MenuSubTrigger,
   MenuTrigger,
 } from "../../ui/menu";
 import { editSpace, newSpace } from "./SpaceDialog";
@@ -40,6 +43,7 @@ import { createFolder } from "./folderMenus";
 import { SidebarAddress } from "./SidebarAddress";
 
 const NO_TABS: readonly RomeTab[] = [];
+const NO_WINDOWS: Readonly<Record<string, string>> = {};
 
 /** A space's mark: its colour with its first letter. */
 export function SpaceMark({ space, className }: { space: RomeSpace; className?: string }) {
@@ -76,6 +80,8 @@ const EXTENSIONS_STORE = "https://chromewebstore.google.com/category/extensions"
 function SpaceSwitcher() {
   const navigate = useNavigate();
   const spaces = useBrowserModel((state) => state.browser?.spaces ?? null);
+  const elsewhere = useBrowserModel((state) => state.browser?.elsewhere ?? NO_WINDOWS);
+  const movable = useBrowserModel(useShallow((state) => state.browser?.newWindowSpaces ?? []));
   const space = useCurrentSpace();
   if (!spaces || !space) return <div className="h-8" />;
   return (
@@ -99,15 +105,39 @@ function SpaceSwitcher() {
           >
             {spaces.map((option) => (
               <MenuRadioItem key={option.id} value={option.id}>
-                <span className="flex min-w-0 items-center gap-2">
+                <span className="flex w-full min-w-0 items-center gap-2">
                   <SpaceMark space={option} className="size-4 rounded-[5px] text-[9px]" />
                   <span className="truncate">{option.name}</span>
+                  {elsewhere[option.id] ? (
+                    <AppWindowIcon
+                      aria-label="Open in another window"
+                      className="ml-auto size-3.5 shrink-0 text-muted-foreground"
+                    />
+                  ) : null}
                 </span>
               </MenuRadioItem>
             ))}
           </MenuRadioGroup>
         </MenuGroup>
         <MenuSeparator />
+        {movable.length ? (
+          <MenuSub>
+            <MenuSubTrigger>Open in new window</MenuSubTrigger>
+            <MenuSubPopup>
+              {spaces
+                .filter((option) => movable.includes(option.id))
+                .map((option) => (
+                  <MenuItem
+                    key={option.id}
+                    onClick={() => browser()?.openSpaceInNewWindow(option.id)}
+                  >
+                    <SpaceMark space={option} className="size-4 rounded-[5px] text-[9px]" />
+                    <span className="truncate">{option.name}</span>
+                  </MenuItem>
+                ))}
+            </MenuSubPopup>
+          </MenuSub>
+        ) : null}
         <MenuItem onClick={() => createFolder()}>New folder</MenuItem>
         <MenuItem
           onClick={() => {
