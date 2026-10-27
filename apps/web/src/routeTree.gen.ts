@@ -35,6 +35,7 @@ import { Route as ProjectsProjectKeyRouteImport } from './routes/projects.$proje
 import { Route as ChatPullRequestsRouteImport } from './routes/_chat.pull-requests'
 import { Route as ChatNewRouteImport } from './routes/_chat.new'
 import { Route as ChatBrowseRouteImport } from './routes/_chat.browse'
+import { Route as ChatSplitSplitIdRouteImport } from './routes/_chat.split.$splitId'
 import { Route as ChatFolderFolderIdRouteImport } from './routes/_chat.folder.$folderId'
 import { Route as ChatDraftDraftIdRouteImport } from './routes/_chat.draft.$draftId'
 import { Route as ChatEnvironmentIdThreadIdRouteImport } from './routes/_chat.$environmentId.$threadId'
@@ -169,6 +170,11 @@ const ChatBrowseRoute = ChatBrowseRouteImport.update({
   path: '/browse',
   getParentRoute: () => ChatRoute,
 } as any)
+const ChatSplitSplitIdRoute = ChatSplitSplitIdRouteImport.update({
+  id: '/split/$splitId',
+  path: '/split/$splitId',
+  getParentRoute: () => ChatRoute,
+} as any)
 const ChatFolderFolderIdRoute = ChatFolderFolderIdRouteImport.update({
   id: '/folder/$folderId',
   path: '/folder/$folderId',
@@ -215,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
   '/draft/$draftId': typeof ChatDraftDraftIdRoute
   '/folder/$folderId': typeof ChatFolderFolderIdRoute
+  '/split/$splitId': typeof ChatSplitSplitIdRoute
 }
 export interface FileRoutesByTo {
   '/connect': typeof ConnectRoute
@@ -245,6 +252,7 @@ export interface FileRoutesByTo {
   '/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
   '/draft/$draftId': typeof ChatDraftDraftIdRoute
   '/folder/$folderId': typeof ChatFolderFolderIdRoute
+  '/split/$splitId': typeof ChatSplitSplitIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -277,6 +285,7 @@ export interface FileRoutesById {
   '/_chat/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
   '/_chat/draft/$draftId': typeof ChatDraftDraftIdRoute
   '/_chat/folder/$folderId': typeof ChatFolderFolderIdRoute
+  '/_chat/split/$splitId': typeof ChatSplitSplitIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -309,6 +318,7 @@ export interface FileRouteTypes {
     | '/$environmentId/$threadId'
     | '/draft/$draftId'
     | '/folder/$folderId'
+    | '/split/$splitId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/connect'
@@ -339,6 +349,7 @@ export interface FileRouteTypes {
     | '/$environmentId/$threadId'
     | '/draft/$draftId'
     | '/folder/$folderId'
+    | '/split/$splitId'
   id:
     | '__root__'
     | '/_chat'
@@ -370,6 +381,7 @@ export interface FileRouteTypes {
     | '/_chat/$environmentId/$threadId'
     | '/_chat/draft/$draftId'
     | '/_chat/folder/$folderId'
+    | '/_chat/split/$splitId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -567,6 +579,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatBrowseRouteImport
       parentRoute: typeof ChatRoute
     }
+    '/_chat/split/$splitId': {
+      id: '/_chat/split/$splitId'
+      path: '/split/$splitId'
+      fullPath: '/split/$splitId'
+      preLoaderRoute: typeof ChatSplitSplitIdRouteImport
+      parentRoute: typeof ChatRoute
+    }
     '/_chat/folder/$folderId': {
       id: '/_chat/folder/$folderId'
       path: '/folder/$folderId'
@@ -599,6 +618,7 @@ interface ChatRouteChildren {
   ChatEnvironmentIdThreadIdRoute: typeof ChatEnvironmentIdThreadIdRoute
   ChatDraftDraftIdRoute: typeof ChatDraftDraftIdRoute
   ChatFolderFolderIdRoute: typeof ChatFolderFolderIdRoute
+  ChatSplitSplitIdRoute: typeof ChatSplitSplitIdRoute
 }
 
 const ChatRouteChildren: ChatRouteChildren = {
@@ -609,6 +629,7 @@ const ChatRouteChildren: ChatRouteChildren = {
   ChatEnvironmentIdThreadIdRoute: ChatEnvironmentIdThreadIdRoute,
   ChatDraftDraftIdRoute: ChatDraftDraftIdRoute,
   ChatFolderFolderIdRoute: ChatFolderFolderIdRoute,
+  ChatSplitSplitIdRoute: ChatSplitSplitIdRoute,
 }
 
 const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)

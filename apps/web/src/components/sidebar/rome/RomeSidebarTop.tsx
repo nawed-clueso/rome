@@ -2,9 +2,10 @@ import { useAutoAnimate } from "@formkit/auto-animate/react";
 import type { RomeSpace, RomeTab } from "@t3-ardia/entry";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { AppWindowIcon, BotIcon, ChevronDownIcon, PlusIcon } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
+import { observeResize } from "~/lib/observeResize";
 import { cn } from "~/lib/utils";
 import { ardiaAvailable, useArdiaHostStore } from "../../../browser/ardia/ardiaHostStore";
 import { useAgentDriving } from "../../../browser/rome/agentActivityStore";
@@ -38,13 +39,18 @@ import {
   MenuTrigger,
 } from "../../ui/menu";
 import { editSpace, newSpace } from "./SpaceDialog";
-import { showTabMenu, SiteIcon } from "./BrowserTabRow";
+import { BrowserTabRow, showTabMenu, SiteIcon } from "./BrowserTabRow";
 import { startFolderDrag, useFolderDrag } from "./folderDrag";
 import { createFolder } from "./folderMenus";
 import { SidebarAddress } from "./SidebarAddress";
 
 const NO_TABS: readonly RomeTab[] = [];
 const NO_WINDOWS: Readonly<Record<string, string>> = {};
+// Pinned tiles fill the sidebar's width, as many to a row as fit at their
+// smallest, for at most two rows; pinned tabs past that list as rows below.
+const TILE_MIN_WIDTH = 40;
+const TILE_GAP = 6;
+const TILE_ROWS = 2;
 
 /** A space's mark: its colour with its first letter. */
 export function SpaceMark({ space, className }: { space: RomeSpace; className?: string }) {
@@ -182,7 +188,7 @@ function PinnedTile({
         void showTabMenu(tab, { x: event.clientX, y: event.clientY });
       }}
       className={cn(
-        "relative grid h-10 cursor-pointer place-items-center rounded-xl outline-hidden transition-colors",
+        "relative grid aspect-square max-h-12 min-h-10 w-full cursor-pointer place-items-center rounded-xl outline-hidden transition-colors",
         "focus-visible:ring-2 focus-visible:ring-ring",
         landing
           ? "bg-sidebar-foreground/[0.08] ring-(--space-accent,var(--foreground)) ring-1 ring-inset"
@@ -191,7 +197,7 @@ function PinnedTile({
             : "bg-sidebar-foreground/[0.045] hover:bg-sidebar-foreground/[0.08]",
       )}
     >
-      <SiteIcon src={tab.favicon} className="size-4" />
+      <SiteIcon src={tab.favicon} className="size-[18px]" />
       {driving ? (
         <BotIcon
           aria-label="The agent is working in this tab"
@@ -226,6 +232,15 @@ function PinnedTiles() {
   );
   const onBrowse = useLocation({ select: (location) => location.pathname === "/browse" });
   const [grid] = useAutoAnimate<HTMLDivElement>({ duration: 150 });
+  const [box, setBox] = useState<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    if (!box) return;
+    return observeResize(box, (entries) => {
+      const last = entries.at(-1);
+      if (last) setWidth(last.contentRect.width);
+    });
+  }, [box]);
   if (!pinned.length && !dragged) return null;
   // While a tab is dragged over the tiles, they make room for it where it would land.
   const drop = drag?.drop?.kind === "tiles" ? drag.drop : null;
@@ -235,24 +250,48 @@ function PinnedTiles() {
     const at = drop.before ? tiles.findIndex((tab) => tab.id === drop.before) : -1;
     tiles = tiles.toSpliced(at < 0 ? tiles.length : at, 0, dragged);
   }
+  const perRow = Math.max(1, Math.floor((width + TILE_GAP) / (TILE_MIN_WIDTH + TILE_GAP)));
+  const shown = width ? tiles.slice(0, perRow * TILE_ROWS) : tiles;
+  const listed = tiles.slice(shown.length);
+  // Rows split evenly, so six tiles that fit five to a row sit three and three.
+  const columns = width ? Math.ceil(shown.length / Math.ceil(shown.length / perRow)) : 0;
   return (
     <div
-      ref={grid}
+      ref={setBox}
       data-space-slide=""
       data-folder-drop-tiles=""
       className={cn(
-        "grid grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))] gap-1.5 px-0.5 pt-2",
+        "flex flex-col gap-1.5 px-0.5 pt-2",
         !tiles.length && "min-h-12 rounded-xl border border-sidebar-foreground/15 border-dashed",
       )}
     >
-      {tiles.map((tab) => (
-        <PinnedTile
-          key={tab.id}
-          tab={tab}
-          active={onBrowse && tab.id === activeId}
-          landing={drop !== null && tab.id === draggedId}
-        />
-      ))}
+      {shown.length ? (
+        <div
+          ref={grid}
+          style={
+            columns ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined
+          }
+          className="grid grid-cols-[repeat(auto-fill,minmax(2.5rem,1fr))] gap-1.5"
+        >
+          {shown.map((tab) => (
+            <PinnedTile
+              key={tab.id}
+              tab={tab}
+              active={onBrowse && tab.id === activeId}
+              landing={drop !== null && tab.id === draggedId}
+            />
+          ))}
+        </div>
+      ) : null}
+      {listed.length ? (
+        <div className="flex flex-col gap-px">
+          {listed.map((tab) => (
+            <div key={tab.id} data-pinned-tile={tab.id}>
+              <BrowserTabRow tab={tab} active={onBrowse && tab.id === activeId} />
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

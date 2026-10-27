@@ -12,6 +12,7 @@ import {
   type RomeBrowserReadyTab,
   type RomeBrowserRequest,
   type RomeBrowserSpaceInput,
+  type RomeBrowserViewInput,
   type RomeBrowserSplitInput,
   type RomeBrowserTab,
   type RomeBrowserTabInput,
@@ -19,6 +20,7 @@ import {
 } from "@t3tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
 import { AsyncResult, Atom } from "effect/reactivity";
+import { useRouter } from "@tanstack/react-router";
 import { useEffect, useEffectEvent } from "react";
 
 import { previewEnvironment } from "~/state/preview";
@@ -30,6 +32,7 @@ import {
   changeSpace,
   changeSplit,
   changeTabs,
+  changeView,
   describeLayout,
   type LayoutContext,
 } from "./agentLayout";
@@ -116,7 +119,7 @@ const inactiveAtom = Atom.make(() => undefined);
  * tab is a chat's when it was opened from the chat or @-mentioned in it, and is
  * shared with that chat only. Also answers the agent's browser_tabs,
  * browser_open and browser_use for chats whose space is in this window, and
- * the browser_layout, browser_tab, browser_split, browser_folder and
+ * the browser_layout, browser_tab, browser_split, browser_folder, browser_view and
  * browser_space tools that arrange the sidebar.
  */
 export function AgentTabs() {
@@ -127,6 +130,7 @@ export function AgentTabs() {
   const tabs = useBrowserModel((state) => state.browser?.tabs ?? null);
   const mentionedIn = useTabMentionStore((state) => state.mentionedIn);
   const showTab = useShowTab();
+  const router = useRouter();
   useAtomValue(
     environmentId && desktop?.agentTab ? browserRequestsAtom(environmentId) : inactiveAtom,
   );
@@ -254,12 +258,20 @@ export function AgentTabs() {
     const model = useBrowserModel.getState().browser;
     if (!actions || !model || !environmentId) throw new Error("Rome's browser hasn't loaded yet.");
     // The tool's schema checked the input on the server.
-    const layout: LayoutContext = { environmentId, holder, spaceId, showTab };
+    const layout: LayoutContext = {
+      environmentId,
+      holder,
+      spaceId,
+      showTab,
+      navigate: (route) => void router.navigate(route as Parameters<typeof router.navigate>[0]),
+      pathname: () => router.state.location.pathname,
+    };
     if (operation === "layout") return describeLayout(layout);
     if (operation === "tab") return changeTabs(input as RomeBrowserTabInput, layout);
     if (operation === "split") return changeSplit(input as RomeBrowserSplitInput, layout);
     if (operation === "folder") return changeFolder(input as RomeBrowserFolderInput, layout);
     if (operation === "space") return changeSpace(input as RomeBrowserSpaceInput, layout);
+    if (operation === "view") return changeView(input as RomeBrowserViewInput, layout);
     const mentions = useTabMentionStore.getState().mentionedIn;
     if (operation === "tabs") {
       const spaceNames = new Map(model.spaces.map((space) => [space.id, space.name]));

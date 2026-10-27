@@ -18,6 +18,15 @@ import {
   useFolderStore,
 } from "../../../browser/rome/folderStore";
 
+import {
+  evenRows,
+  MAX_SPLIT_COLUMNS,
+  MAX_SPLIT_ROWS,
+  type SplitGroup,
+  splitTabKey,
+  useSplitViewStore,
+} from "../../../splitViewStore";
+
 /** The folder whose name is being typed, right after it is made or when renaming. */
 export const useFolderRename = create<{ folderId: string | null }>()(() => ({ folderId: null }));
 export const startRenamingFolder = (folderId: string | null) =>
@@ -109,12 +118,25 @@ type FolderMenuId =
   | "new-tab"
   | "new-subfolder"
   | "open-view"
+  | "open-split"
   | "rename"
   | "icon"
   | `icon:${string}`
   | "icon-reset"
   | "ungroup"
   | "delete";
+
+/** The tabs and chats a folder holds directly, as split panes: six at most. */
+function splitPanes(folder: RomeFolder): string[] {
+  const tabs = useBrowserModel.getState().browser?.tabs ?? {};
+  return folder.items
+    .flatMap((item) => {
+      const { kind, id } = parseFolderItem(item);
+      if (kind === "tab") return tabs[id] ? [splitTabKey(id)] : [];
+      return kind === "thread" ? [id] : [];
+    })
+    .slice(0, MAX_SPLIT_ROWS * MAX_SPLIT_COLUMNS);
+}
 
 /** A folder's own menu. */
 export async function showFolderMenu(
@@ -123,15 +145,29 @@ export async function showFolderMenu(
   handlers: {
     readonly onNewTab: (folderId: string) => void;
     readonly onOpenView: (folderId: string) => void;
+    /** Shows a split made from the folder; without it the menu doesn't offer one. */
+    readonly onOpenSplit?: (group: SplitGroup) => void;
   },
 ) {
   const api = readLocalApi();
   if (!api) return;
   const tabCount = tabsUnder(useFolderStore.getState().folders, folder.id).length;
+  const panes = splitPanes(folder);
   const items: ContextMenuItem<FolderMenuId>[] = [
     { id: "new-tab", label: "New tab in folder", icon: "message-square-plus" },
     { id: "new-subfolder", label: "New folder inside", icon: "folder" },
     { id: "open-view", label: "Open folder view", icon: "folder-tree" },
+    ...(handlers.onOpenSplit && panes.length >= 2
+      ? [
+          {
+            id: "open-split" as const,
+            label:
+              panes.length < folder.items.length
+                ? `Open first ${panes.length} as split view`
+                : "Open as split view",
+          },
+        ]
+      : []),
     { id: "rename", label: "Rename", icon: "pencil", separatorBefore: true },
     {
       id: "icon",
@@ -171,6 +207,15 @@ export async function showFolderMenu(
       return void createFolder({ parentId: folder.id });
     case "open-view":
       return handlers.onOpenView(folder.id);
+    case "open-split": {
+      const splits = useSplitViewStore.getState();
+      const id = splits.setRows(null, evenRows(panes));
+      if (!id) return;
+      splits.rename(id, folder.name);
+      const group = useSplitViewStore.getState().groups.find((entry) => entry.id === id);
+      if (group) handlers.onOpenSplit?.(group);
+      return;
+    }
     case "rename":
       return startRenamingFolder(folder.id);
     case "icon-reset":

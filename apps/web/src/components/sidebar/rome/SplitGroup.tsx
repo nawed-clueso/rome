@@ -1,6 +1,6 @@
 import type { RomeBrowser } from "@t3-ardia/entry";
 import { parseScopedThreadKey, scopedThreadKey } from "@t3tools/client-runtime/environment";
-import { useNavigate } from "@tanstack/react-router";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 import { ChevronRightIcon, Columns2Icon } from "lucide-react";
 import { type MouseEvent as ReactMouseEvent, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -14,6 +14,7 @@ import { useBrowserModel, useTab } from "../../../browser/rome/browserStore";
 import { spaceOfThread, useThreadSpaceStore } from "../../../browser/rome/threadSpaceStore";
 import { SiteIcon } from "./BrowserTabRow";
 import { buildThreadRouteParams } from "~/threadRoutes";
+import { splitRoute } from "../../split/splitRoute";
 
 function MemberRow(props: {
   readonly threadKey: string;
@@ -86,16 +87,19 @@ function SplitBox(props: { readonly group: SplitGroup; readonly routeKey: string
   const navigate = useNavigate();
   const { group, routeKey } = props;
   const members = splitMembers(group);
-  const open = routeKey !== null && members.includes(routeKey);
+  const onSplitPage = useLocation({
+    select: (location) => location.pathname === `/split/${group.id}`,
+  });
+  const open = onSplitPage || (routeKey !== null && members.includes(routeKey));
   const collapsed = group.collapsed === true;
   const [renaming, setRenaming] = useState(false);
 
   const openMember = (threadKey: string) => {
-    // A tab opens the split through one of its chats.
-    const chat = splitTabId(threadKey) ? members.find((key) => !splitTabId(key)) : threadKey;
-    const ref = chat ? parseScopedThreadKey(chat) : null;
+    // A chat opens the split on itself; a tab opens it as splitRoute does.
+    const ref = splitTabId(threadKey) ? null : parseScopedThreadKey(threadKey);
     if (ref)
       void navigate({ to: "/$environmentId/$threadId", params: buildThreadRouteParams(ref) });
+    else void navigate(splitRoute(group));
   };
 
   const showMenu = async (event: ReactMouseEvent, threadKey: string | null) => {
@@ -137,7 +141,7 @@ function SplitBox(props: { readonly group: SplitGroup; readonly routeKey: string
           onClick={() => useSplitViewStore.getState().setCollapsed(group.id, !collapsed)}
           onDoubleClick={() => setRenaming(true)}
           className={cn(
-            "group/split flex h-6 w-full cursor-pointer items-center gap-1.5 rounded-md px-2 font-label text-[10.5px] text-sidebar-muted-foreground uppercase tracking-[0.07em] outline-hidden",
+            "group/split flex h-6 w-full cursor-pointer items-center gap-1.5 rounded-md px-2 font-medium text-sidebar-muted-foreground text-xs outline-hidden",
             "hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
           )}
         >

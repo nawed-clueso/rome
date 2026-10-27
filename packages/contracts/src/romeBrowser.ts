@@ -16,6 +16,7 @@ export const RomeBrowserOperation = Schema.Literals([
   "split",
   "folder",
   "space",
+  "view",
 ]);
 export type RomeBrowserOperation = typeof RomeBrowserOperation.Type;
 
@@ -134,8 +135,26 @@ export const RomeBrowserLayoutSplit = Schema.Struct({
   name: Schema.NullOr(Schema.String),
   /** Top row first, each left to right. */
   rows: Schema.Array(Schema.Array(Schema.String)),
+  /** On screen now. */
+  shown: Schema.Boolean,
+  /** Folded to its header in the sidebar. */
+  collapsed: Schema.Boolean,
+  /** Each row's share of the height, in percent. */
+  rowSizes: Schema.Array(Schema.Number),
+  /** Each pane's share of its row's width, in percent, by row. */
+  columnSizes: Schema.Array(Schema.Array(Schema.Number)),
 });
 export type RomeBrowserLayoutSplit = typeof RomeBrowserLayoutSplit.Type;
+
+/** What the window shows now. */
+export const RomeBrowserLayoutView = Schema.Struct({
+  kind: Schema.Literals(["chat", "split", "folder", "browser", "new", "other"]),
+  /** `chat:<threadId>`, the splitId or the folderId; null for the others. */
+  id: Schema.NullOr(Schema.String),
+  /** For browser: the tab on screen. */
+  browserTabId: Schema.NullOr(Schema.String),
+});
+export type RomeBrowserLayoutView = typeof RomeBrowserLayoutView.Type;
 
 export const RomeBrowserLayout = Schema.Struct({
   /** This chat, as `chat:<threadId>`. */
@@ -146,6 +165,7 @@ export const RomeBrowserLayout = Schema.Struct({
   tabs: Schema.Array(RomeBrowserLayoutTab),
   folders: Schema.Array(RomeBrowserLayoutFolder),
   splits: Schema.Array(RomeBrowserLayoutSplit),
+  view: RomeBrowserLayoutView,
   /** The colours a space can take. */
   spaceColors: Schema.Array(Schema.String),
 });
@@ -183,20 +203,43 @@ export const RomeBrowserTabInput = Schema.Struct({
 });
 export type RomeBrowserTabInput = typeof RomeBrowserTabInput.Type;
 
+const SplitRows = Schema.Array(Schema.Array(ItemRef)).annotate({
+  description:
+    "A layout: one or two rows, top first, of one to three panes each, left to right. A folder fills in its tabs.",
+});
+
 export const RomeBrowserSplitInput = Schema.Struct({
-  action: Schema.Literals(["add", "remove", "separate", "rename"]).annotate({
+  action: Schema.Literals([
+    "create",
+    "add",
+    "remove",
+    "arrange",
+    "resize",
+    "open",
+    "separate",
+    "rename",
+    "collapse",
+    "expand",
+  ]).annotate({
     description:
-      "add puts members beside a chat, in its split or a new one; remove takes members out of their split; separate ends a split; rename names it.",
+      "create makes a split from members or rows (tabs only is fine); add puts members beside a chat or tab, in its split or a new one; remove takes members out; arrange lays an existing split out as rows (members left out leave it); resize sets pane and row sizes; open shows a split on screen; separate ends it; rename names it; collapse and expand fold its box in the sidebar.",
   }),
-  members: Schema.optional(
-    Schema.Array(ItemRef).annotate({
-      description: "For add and remove: tabs and chats.",
+  splitId: Schema.optional(
+    Schema.String.annotate({
+      description: "For arrange, resize, open, separate, rename, collapse and expand.",
     }),
   ),
+  members: Schema.optional(
+    Schema.Array(ItemRef).annotate({
+      description:
+        "For create, add and remove: tabs and chats; a folder means its tabs. create lays them out two rows of three at most, evenly.",
+    }),
+  ),
+  rows: Schema.optional(SplitRows),
   beside: Schema.optional(
     ItemRef.annotate({
       description:
-        "For add: the chat (or a member of its split) to go beside. Defaults to this chat.",
+        "For add: the chat or tab to go beside; a tab in no split starts a split of tabs. Defaults to this chat.",
     }),
   ),
   side: Schema.optional(
@@ -204,12 +247,42 @@ export const RomeBrowserSplitInput = Schema.Struct({
       description: "For add: which side of `beside`. Left out, members go wherever there's room.",
     }),
   ),
-  splitId: Schema.optional(Schema.String.annotate({ description: "For separate and rename." })),
+  sizes: Schema.optional(
+    Schema.Struct({
+      rows: Schema.optional(
+        Schema.Array(Schema.Number).annotate({
+          description: "Each row's share of the height, top first, as relative numbers.",
+        }),
+      ),
+      columns: Schema.optional(
+        Schema.Array(Schema.Array(Schema.Number)).annotate({
+          description: "Each pane's share of its row's width, by row, as relative numbers.",
+        }),
+      ),
+    }).annotate({
+      description: "For resize; left out (or a part left out) makes those sizes even.",
+    }),
+  ),
   name: Schema.optional(
-    Schema.String.annotate({ description: 'For rename; blank goes back to "Split view".' }),
+    Schema.String.annotate({
+      description: 'For create and rename; blank goes back to "Split view".',
+    }),
+  ),
+  show: Schema.optional(
+    Schema.Boolean.annotate({
+      description: "For create, add and arrange: also show the split on screen (default false).",
+    }),
   ),
 });
 export type RomeBrowserSplitInput = typeof RomeBrowserSplitInput.Type;
+
+export const RomeBrowserViewInput = Schema.Struct({
+  show: Schema.String.annotate({
+    description:
+      "What to put on screen: `chat:<threadId>`, `tab:<browserTabId>`, `split:<splitId>`, `folder:<folderId>` (the folder as a page), `browser` (the browser on its own) or `new` (the new chat screen).",
+  }),
+});
+export type RomeBrowserViewInput = typeof RomeBrowserViewInput.Type;
 
 export const RomeBrowserFolderInput = Schema.Struct({
   action: Schema.Literals([

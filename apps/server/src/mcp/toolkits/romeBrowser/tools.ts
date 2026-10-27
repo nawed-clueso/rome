@@ -6,6 +6,7 @@ import {
   RomeBrowserLayout,
   RomeBrowserOpenInput,
   RomeBrowserSpaceInput,
+  RomeBrowserViewInput,
   RomeBrowserSplitInput,
   RomeBrowserTabInput,
   RomeBrowserReadyTab,
@@ -75,7 +76,7 @@ const BrowserTabTool = Tool.make("browser_tab", {
 const BrowserSplitTool = Tool.make("browser_split", {
   ...shared,
   description:
-    "Arrange split views in Rome: show tabs or chats beside a chat, take them out, end a split or name it. Up to two rows of three.",
+    "Arrange split views in Rome: make one from tabs and chats, lay it out in rows, resize its panes, add or take out members, show it, name it or end it. Up to two rows of three.",
   parameters: RomeBrowserSplitInput,
   success: RomeBrowserChangeResult,
 }).annotate(Tool.Destructive, false);
@@ -96,6 +97,14 @@ const BrowserSpaceTool = Tool.make("browser_space", {
   success: RomeBrowserChangeResult,
 }).annotate(Tool.Destructive, false);
 
+const BrowserViewTool = Tool.make("browser_view", {
+  ...shared,
+  description:
+    "Change what the user's Rome window shows: a chat, a tab, a split view, a folder as a page, the browser, or the new chat screen. browser_layout's view says what's on screen now.",
+  parameters: RomeBrowserViewInput,
+  success: RomeBrowserChangeResult,
+}).annotate(Tool.Destructive, false);
+
 export const RomeBrowserToolkit = Toolkit.make(
   BrowserTabsTool,
   BrowserOpenTool,
@@ -105,4 +114,5 @@ export const RomeBrowserToolkit = Toolkit.make(
   BrowserSplitTool,
   BrowserFolderTool,
   BrowserSpaceTool,
+  BrowserViewTool,
 );

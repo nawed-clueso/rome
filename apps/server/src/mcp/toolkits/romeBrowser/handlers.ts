@@ -54,4 +54,5 @@ export const layer = McpToolAccess.toLayer(RomeBrowserToolkit, {
   browser_space: McpToolAccess.actsAsCaller((input) =>
     ask(RomeBrowserChangeResult, "space", input),
   ),
+  browser_view: McpToolAccess.actsAsCaller((input) => ask(RomeBrowserChangeResult, "view", input)),
 });

@@ -9,13 +9,18 @@ import {
   type RomeBrowserChangeResult,
   type RomeBrowserFolderInput,
   type RomeBrowserLayout,
+  type RomeBrowserLayoutView,
   type RomeBrowserSpaceInput,
   type RomeBrowserSplitInput,
   type RomeBrowserTabInput,
+  type RomeBrowserViewInput,
   ThreadId,
 } from "@t3tools/contracts";
 
 import {
+  evenRows,
+  rowsFit,
+  type SplitGroup,
   type SplitSide,
   splitGroupOf,
   splitMembers,
@@ -23,6 +28,8 @@ import {
   splitTabKey,
   useSplitViewStore,
 } from "../../splitViewStore";
+import { splitRoute } from "../../components/split/splitRoute";
+import { buildThreadRouteParams } from "../../threadRoutes";
 import { browser, switchSpaceAnimated, useBrowserModel } from "./browserStore";
 import { closeFolderTab, deleteFolder, fileItem, ungroupFolder, unfileTab } from "./folderActions";
 import {
@@ -38,13 +45,24 @@ import { useThreadSpaceStore } from "./threadSpaceStore";
 // The sidebar as an agent arranges it: the same spaces, tabs, folders and splits
 // the user drags around, changed through the same stores the sidebar uses.
 
-/** The chat asking, and how to show a tab to the user. */
+/** Where the window can go, as the router takes it. */
+export type ViewRoute =
+  | { readonly to: "/$environmentId/$threadId"; readonly params: Record<string, string> }
+  | { readonly to: "/split/$splitId"; readonly params: { readonly splitId: string } }
+  | { readonly to: "/folder/$folderId"; readonly params: { readonly folderId: string } }
+  | { readonly to: "/browse" }
+  | { readonly to: "/new" };
+
+/** The chat asking, and how to show things to the user. */
 export interface LayoutContext {
   readonly environmentId: EnvironmentId;
   /** The chat, as a scoped thread key. */
   readonly holder: string;
   readonly spaceId: string;
   readonly showTab: (tab: Pick<RomeTab, "id" | "owner">) => void;
+  readonly navigate: (route: ViewRoute) => void;
+  /** The window's path now, as the router has it. */
+  readonly pathname: () => string;
 }
 
 type Ref =
@@ -97,6 +115,50 @@ const done = (message: string, ids: readonly string[] = []): RomeBrowserChangeRe
   ids,
 });
 
+const percents = (weights: readonly number[]) => {
+  const total = weights.reduce((sum, weight) => sum + weight, 0) || 1;
+  return weights.map((weight) => Math.round((weight / total) * 1000) / 10);
+};
+const weightOr = (value: number | undefined) => (value && value > 0 ? value : 1);
+
+/** A split's row heights and pane widths, in percent, as its panes show them. */
+function splitSizes(group: SplitGroup) {
+  const { columnWeights, rowWeights } = useSplitViewStore.getState();
+  return {
+    rowSizes: percents(group.rows.map((_, index) => weightOr(rowWeights[group.id]?.[index]))),
+    columnSizes: group.rows.map((row) => percents(row.map((key) => weightOr(columnWeights[key])))),
+  };
+}
+
+/** What the window shows, read from its route. */
+function currentView(context: LayoutContext): RomeBrowserLayoutView {
+  const [first = "", second] = context
+    .pathname()
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => decodeURIComponent(segment));
+  const none = { id: null, browserTabId: null };
+  if (first === "split" && second) return { ...none, kind: "split", id: second };
+  if (first === "folder" && second) return { ...none, kind: "folder", id: second };
+  if (first === "browse") {
+    const browserModel = useBrowserModel.getState().browser;
+    const active = browserModel?.spaceId ? browserModel.active[browserModel.spaceId] : null;
+    return { ...none, kind: "browser", browserTabId: active ?? null };
+  }
+  if (first === "" || first === "new" || first === "draft") return { ...none, kind: "new" };
+  if (second) {
+    const key = scopedThreadKey(scopeThreadRef(first as EnvironmentId, ThreadId.make(second)));
+    const group = splitGroupOf(useSplitViewStore.getState().groups, key);
+    return group
+      ? { ...none, kind: "split", id: group.id }
+      : { ...none, kind: "chat", id: chatRef(key) };
+  }
+  return { ...none, kind: "other" };
+}
+
+const showSplit = (group: SplitGroup, context: LayoutContext) =>
+  context.navigate(splitRoute(group));
+
 export function describeLayout(context: LayoutContext): RomeBrowserLayout {
   const browserModel = model();
   const { folders, roots } = useFolderStore.getState();
@@ -109,6 +171,7 @@ export function describeLayout(context: LayoutContext): RomeBrowserLayout {
     return kind === "thread" ? chatRef(id) : item;
   };
   const memberOut = (key: string) => (splitTabId(key) ? key : chatRef(key));
+  const view = currentView(context);
   return {
     thisChat: chatRef(context.holder),
     chatSpaceId: context.spaceId,
@@ -149,7 +212,11 @@ export function describeLayout(context: LayoutContext): RomeBrowserLayout {
       splitId: group.id,
       name: group.name ?? null,
       rows: group.rows.map((row) => row.map(memberOut)),
+      shown: view.kind === "split" && view.id === group.id,
+      collapsed: group.collapsed === true,
+      ...splitSizes(group),
     })),
+    view,
     spaceColors: actions().SPACE_COLORS.map((color) => color.id),
   };
 }
@@ -250,70 +317,198 @@ export function changeTabs(
   }
 }
 
-const splitKey = (ref: string, context: LayoutContext) => {
+/** A ref as split members: a tab or chat is one, a folder is the tabs and chats it holds directly. */
+const splitKeys = (ref: string, context: LayoutContext): string[] => {
   const parsed = parseRef(ref, context);
-  if (parsed.kind === "folder") return fail("A split holds tabs and chats, not folders.");
-  if (parsed.kind === "chat") return parsed.key;
-  return splitTabKey(tabOf(parsed.id).id);
+  if (parsed.kind === "chat") return [parsed.key];
+  if (parsed.kind === "tab") return [splitTabKey(tabOf(parsed.id).id)];
+  const folder =
+    useFolderStore.getState().folders[parsed.id] ??
+    fail(`No folder ${parsed.id}. Call browser_layout for the folders.`);
+  return folder.items.flatMap((item) => {
+    const { kind, id } = parseFolderItem(item);
+    if (kind === "tab") return model().tabs[id] ? [splitTabKey(id)] : [];
+    return kind === "thread" ? [id] : [];
+  });
 };
+
+const membersOf = (refs: readonly string[], context: LayoutContext) => [
+  ...new Set(refs.flatMap((ref) => splitKeys(ref, context))),
+];
+
+const NO_FIT =
+  "A split holds one or two rows of one to three panes, two panes at least, each once.";
+
+const rowsOf = (input: RomeBrowserSplitInput, context: LayoutContext) => {
+  if (input.rows) return input.rows.map((row) => membersOf(row, context));
+  const members = membersOf(input.members ?? [], context);
+  if (members.length > 6) {
+    fail(`That's ${members.length} panes; a split holds six at most. Make two splits.`);
+  }
+  return evenRows(members);
+};
+
+const shape = (group: SplitGroup) =>
+  group.rows.map((row) => row.length).join(" over ") +
+  (group.rows.length > 1 ? "" : " side by side");
 
 export function changeSplit(
   input: RomeBrowserSplitInput,
   context: LayoutContext,
 ): RomeBrowserChangeResult {
-  const store = useSplitViewStore.getState();
-  const groupOf = (splitId: string) =>
-    store.groups.find((group) => group.id === splitId) ??
-    fail(`No split ${splitId}. Call browser_layout for the splits.`);
+  const store = () => useSplitViewStore.getState();
+  const groupOf = (splitId: string | undefined) =>
+    store().groups.find(
+      (group) => group.id === (splitId ?? fail(`${input.action} needs a splitId.`)),
+    ) ?? fail(`No split ${splitId}. Call browser_layout for the splits.`);
+  const finish = (group: SplitGroup, message: string) => {
+    if (input.show) showSplit(group, context);
+    return done(`${message} (${shape(group)})${input.show ? ", on screen" : ""}.`, [group.id]);
+  };
   switch (input.action) {
+    case "create": {
+      const rows = rowsOf(input, context);
+      if (!rowsFit(rows)) fail(NO_FIT);
+      const id = store().setRows(null, rows) ?? fail(NO_FIT);
+      if (input.name?.trim()) store().rename(id, input.name);
+      return finish(groupOf(id), `Made a split of ${plural(rows.flat().length, "pane")}`);
+    }
     case "add": {
-      const members = (input.members ?? []).map((ref) => splitKey(ref, context));
+      const members = membersOf(input.members ?? [], context);
       if (members.length === 0) fail("add needs members.");
-      const beside = input.beside ? splitKey(input.beside, context) : context.holder;
-      if (splitTabId(beside) && !splitGroupOf(store.groups, beside)) {
-        fail("A split starts beside a chat; name a chat (or a tab already in a split) as beside.");
-      }
+      const beside = input.beside
+        ? (splitKeys(input.beside, context)[0] ?? fail("Nothing to go beside."))
+        : context.holder;
       const side: SplitSide | undefined = input.side;
       // Each lands next to `beside`, so the ones after it go in backwards to keep their order.
       const ordered = side === "right" || side === "bottom" ? members.toReversed() : members;
       for (const member of ordered) {
         if (member === beside) continue;
-        if (side) {
-          useSplitViewStore.getState().place(beside, member, { target: beside, side });
-        } else {
-          useSplitViewStore.getState().join(beside, member);
-        }
+        if (side) store().place(beside, member, { target: beside, side });
+        else store().join(beside, member);
       }
-      const group = splitGroupOf(useSplitViewStore.getState().groups, beside);
+      const group = splitGroupOf(store().groups, beside);
       const missing = members.filter(
         (member) => member !== beside && !group?.rows.some((row) => row.includes(member)),
       );
-      if (missing.length > 0) {
+      if (missing.length > 0 || !group) {
         fail(
           `No room for ${plural(missing.length, "member")}: a split holds two rows of three, and each row three.`,
         );
       }
-      return done(`Split view has ${plural(splitMembers(group!).length, "pane")}.`, [group!.id]);
+      return finish(group!, `Split view has ${plural(splitMembers(group!).length, "pane")}`);
     }
     case "remove": {
-      const members = (input.members ?? []).map((ref) => splitKey(ref, context));
+      const members = membersOf(input.members ?? [], context);
       if (members.length === 0) fail("remove needs members.");
-      for (const member of members) useSplitViewStore.getState().leave(member);
+      for (const member of members) store().leave(member);
       return done(`Took ${plural(members.length, "member")} out of their split.`);
     }
+    case "arrange": {
+      const group = groupOf(input.splitId);
+      if (!input.rows) fail("arrange needs rows.");
+      const rows = rowsOf(input, context);
+      if (!rowsFit(rows)) fail(NO_FIT);
+      store().setRows(group.id, rows);
+      return finish(groupOf(group.id), "Laid it out");
+    }
+    case "resize": {
+      const group = groupOf(input.splitId);
+      const rowSizes = input.sizes?.rows;
+      const columnSizes = input.sizes?.columns;
+      if (rowSizes && rowSizes.length !== group.rows.length) {
+        fail(`sizes.rows needs ${group.rows.length} numbers, one per row.`);
+      }
+      if (columnSizes && columnSizes.length !== group.rows.length) {
+        fail(`sizes.columns needs ${group.rows.length} lists, one per row.`);
+      }
+      const positive = (values: readonly number[]) => values.every((value) => value > 0);
+      store().setRowWeights(
+        group.id,
+        rowSizes && positive(rowSizes) ? rowSizes : group.rows.map(() => 1),
+      );
+      const weights: Record<string, number> = {};
+      group.rows.forEach((row, index) => {
+        const sizes = columnSizes?.[index];
+        if (sizes && sizes.length !== row.length) {
+          fail(`Row ${index + 1} has ${plural(row.length, "pane")}; give it that many sizes.`);
+        }
+        row.forEach((key, column) => {
+          weights[key] = sizes && positive(sizes) ? sizes[column]! : 1;
+        });
+      });
+      store().setColumnWeights(weights);
+      const sizes = splitSizes(groupOf(group.id));
+      return done(
+        `Sized it: rows ${sizes.rowSizes.join("/")}%, panes ${sizes.columnSizes.map((row) => row.join("/")).join(" | ")}%.`,
+        [group.id],
+      );
+    }
+    case "open": {
+      const group = groupOf(input.splitId);
+      showSplit(group, context);
+      return done(`Showing ${group.name ?? "the split"}.`, [group.id]);
+    }
     case "separate": {
-      const group = groupOf(input.splitId ?? fail("separate needs a splitId."));
-      store.separate(group.id);
+      const group = groupOf(input.splitId);
+      store().separate(group.id);
       return done("Ended the split view.");
     }
     case "rename": {
-      const group = groupOf(input.splitId ?? fail("rename needs a splitId."));
-      store.rename(group.id, input.name ?? "");
+      const group = groupOf(input.splitId);
+      store().rename(group.id, input.name ?? "");
       return done(input.name?.trim() ? `Named it "${input.name.trim()}".` : "Unnamed it.", [
         group.id,
       ]);
     }
+    case "collapse":
+    case "expand": {
+      const group = groupOf(input.splitId);
+      store().setCollapsed(group.id, input.action === "collapse");
+      return done(input.action === "collapse" ? "Folded it in the sidebar." : "Unfolded it.", [
+        group.id,
+      ]);
+    }
   }
+}
+
+export function changeView(
+  input: RomeBrowserViewInput,
+  context: LayoutContext,
+): RomeBrowserChangeResult {
+  const target = input.show.trim();
+  if (target === "browser") {
+    context.navigate({ to: "/browse" });
+    return done("Showing the browser.");
+  }
+  if (target === "new") {
+    context.navigate({ to: "/new" });
+    return done("Showing the new chat screen.");
+  }
+  if (target.startsWith("split:")) {
+    const id = target.slice(6);
+    const group =
+      useSplitViewStore.getState().groups.find((entry) => entry.id === id) ??
+      fail(`No split ${id}. Call browser_layout for the splits.`);
+    showSplit(group, context);
+    return done(`Showing ${group.name ?? "the split"}.`, [id]);
+  }
+  const parsed = parseRef(target, context);
+  if (parsed.kind === "folder") {
+    const folder =
+      useFolderStore.getState().folders[parsed.id] ??
+      fail(`No folder ${parsed.id}. Call browser_layout for the folders.`);
+    context.navigate({ to: "/folder/$folderId", params: { folderId: folder.id } });
+    return done(`Showing the folder "${folder.name}".`, [folder.id]);
+  }
+  if (parsed.kind === "chat") {
+    const ref = parseScopedThreadKey(parsed.key) ?? fail(`No chat ${target}.`);
+    context.navigate({ to: "/$environmentId/$threadId", params: buildThreadRouteParams(ref) });
+    return done("Showing the chat.");
+  }
+  const tab = tabOf(parsed.id);
+  context.showTab(tab);
+  return done(`Showing "${tab.title}".`, [tab.id]);
 }
 
 const folderEntry = (ref: string, context: LayoutContext): FolderItem => {

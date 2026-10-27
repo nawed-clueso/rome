@@ -27,6 +27,7 @@ import { threadContextDropTargetProps, useThreadContextDrop } from "../../chat/t
 import { BrowserTabRow } from "./BrowserTabRow";
 import { startFolderDrag } from "./folderDrag";
 import { showFolderMenu, startRenamingFolder, useFolderRename } from "./folderMenus";
+import { splitRoute } from "../../split/splitRoute";
 
 const NO_ROOTS: readonly string[] = [];
 const FOLDER_DROP_ENVIRONMENT = "folder" as EnvironmentId;
@@ -200,6 +201,7 @@ function FolderNode(props: {
     void showFolderMenu(folder, position, {
       onNewTab: props.handlers.onNewTab,
       onOpenView: openView,
+      onOpenSplit: (group) => void navigate(splitRoute(group)),
     });
 
   return (

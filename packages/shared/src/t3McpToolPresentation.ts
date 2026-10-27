@@ -317,6 +317,7 @@ const T3_MCP_TOOLS: Readonly<Record<string, T3McpToolDefinition>> = {
     "browser",
   ),
   browser_space: tool(["Arrange", "Arranging", "Arranged", "browser spaces"], "browser", "browser"),
+  browser_view: tool(["Show", "Showing", "Showed", "a view"], "browser", "browser"),
   t3_environment_read: tool(
     ["Read", "Reading", "Read", "environment preferences"],
     "environment-read",

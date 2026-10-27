@@ -86,6 +86,32 @@ interface SplitViewState {
   readonly setCollapsed: (groupId: string, collapsed: boolean) => void;
   /** Names a split; a blank name goes back to "Split view". */
   readonly rename: (groupId: string, name: string) => void;
+  /**
+   * Lays a split out as `rows`, or makes a new one when `groupId` is null.
+   * Members come out of any other split; members it held but `rows` leaves out
+   * leave it, and its sizes go back to even. Returns the split's id, or null when
+   * the rows don't fit.
+   */
+  readonly setRows: (groupId: string | null, rows: readonly (readonly string[])[]) => string | null;
+}
+
+/** Whether rows fit a split: one or two rows of one to three, two members at least, none twice. */
+export function rowsFit(rows: readonly (readonly string[])[]): boolean {
+  const members = rows.flat();
+  return (
+    rows.length >= 1 &&
+    rows.length <= MAX_SPLIT_ROWS &&
+    rows.every((row) => row.length >= 1 && row.length <= MAX_SPLIT_COLUMNS) &&
+    members.length >= 2 &&
+    new Set(members).size === members.length
+  );
+}
+
+/** `members` as split rows: one row up to three, else two as even as they go, the first fuller. */
+export function evenRows(members: readonly string[]): string[][] {
+  if (members.length <= MAX_SPLIT_COLUMNS) return [[...members]];
+  const first = Math.ceil(members.length / MAX_SPLIT_ROWS);
+  return [members.slice(0, first), members.slice(first)];
 }
 
 const withoutMember = (groups: readonly SplitGroup[], threadKey: string): SplitGroup[] =>
@@ -148,6 +174,30 @@ export const useSplitViewStore = create<SplitViewState>()(
             group.id === groupId ? { ...group, collapsed } : group,
           ),
         })),
+      setRows: (groupId, rows) => {
+        if (!rowsFit(rows)) return null;
+        const id = groupId ?? newGroupId();
+        let groups = get().groups;
+        const before = groups.find((group) => group.id === id);
+        for (const key of rows.flat()) {
+          if (splitGroupOf(groups, key)?.id !== id) groups = withoutMember(groups, key);
+        }
+        const next = { ...before, id, rows: rows.map((row) => [...row]) };
+        const at = groups.findIndex((group) => group.id === id);
+        // A new layout starts even: sizes from the old one don't fit it.
+        const { [id]: _rows, ...rowWeights } = get().rowWeights;
+        const columnWeights = { ...get().columnWeights };
+        for (const key of rows.flat()) delete columnWeights[key];
+        set({
+          rowWeights,
+          columnWeights,
+          groups:
+            at >= 0
+              ? groups.map((group, index) => (index === at ? next : group))
+              : [...groups, next],
+        });
+        return id;
+      },
       rename: (groupId, name) =>
         set((state) => ({
           groups: state.groups.map((group) => {
