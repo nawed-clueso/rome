@@ -200,6 +200,59 @@ export function searchEngineName(): string {
   return defaultSearchEngine(useBrowser.getState().settings).name;
 }
 
+const SIGN_IN_HOST = /^(accounts|login|auth|signin|sso|id|oauth)\./i;
+const SIGN_IN_PATH = /\/(login|signin|sign-in|signup|oauth|authorize)\b/i;
+
+export type TopSite = { url: string; title: string; favicon: string | null; visits: number };
+
+/**
+ * A space's most visited sites, one per site (its most visited page there), for
+ * the New screen's quick links.
+ */
+export function topSites(spaceId: string, limit: number): TopSite[] {
+  const bySite = new Map<string, TopSite & { total: number }>();
+  for (const visit of history) {
+    if (visit.spaceId !== spaceId || !isPage(visit.url)) continue;
+    let host: string;
+    try {
+      const url = new URL(visit.url);
+      host = url.host.replace(/^www\./, "");
+      // Sign-in pages are passed through, not visited.
+      if (SIGN_IN_HOST.test(host) || SIGN_IN_PATH.test(url.pathname)) continue;
+    } catch {
+      continue;
+    }
+    const site = bySite.get(host);
+    if (!site) {
+      bySite.set(host, {
+        url: visit.url,
+        title: visit.title,
+        favicon: visit.favicon,
+        visits: visit.visits,
+        total: visit.visits,
+      });
+      continue;
+    }
+    site.total += visit.visits;
+    if (visit.visits > site.visits)
+      Object.assign(site, {
+        url: visit.url,
+        title: visit.title,
+        favicon: visit.favicon ?? site.favicon,
+        visits: visit.visits,
+      });
+  }
+  return [...bySite.values()]
+    .toSorted((a, b) => b.total - a.total)
+    .slice(0, limit)
+    .map(({ url, title, favicon, total }) => ({
+      url,
+      title,
+      favicon: favicon ?? knownFavicon(url),
+      visits: total,
+    }));
+}
+
 /** Starts keeping the pages the user visits, for suggestions. */
 export function startHistory() {
   record();

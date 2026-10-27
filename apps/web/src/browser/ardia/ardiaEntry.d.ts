@@ -76,6 +76,20 @@ declare module "@t3-ardia/entry" {
   export function setTabAgentDriven(tabId: string, driven: boolean): void;
   /** Loads a sleeping tab's page without showing it. */
   export function wakeTab(tabId: string): void;
+  export type ClosedRomeTab = {
+    id: string;
+    title: string;
+    url: string;
+    favicon: string | null;
+    closedAt: number;
+  };
+  /** A space's most recently closed tabs, newest first. */
+  export function recentlyClosed(spaceId: string, limit: number): ClosedRomeTab[];
+  /** Reopens a closed tab where it was. */
+  export function restoreClosedTab(entryId: string): void;
+  export type TopSite = { url: string; title: string; favicon: string | null; visits: number };
+  /** A space's most visited sites, one per site. */
+  export function topSites(spaceId: string, limit: number): TopSite[];
   /** Moves a tab before `beforeId` among its space's tabs pinned the same way; null for last. */
   export function moveTab(tabId: string, beforeId: string | null): void;
   export function showTabAt(tabId: string, element: HTMLElement | null): void;

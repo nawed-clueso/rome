@@ -451,6 +451,42 @@ export function setBrowserParked(parked: boolean) {
 }
 
 /** Loads a sleeping tab's page without showing it. */
+export type ClosedRomeTab = {
+  /** The closed-tab entry's id, for restoreClosedTab. */
+  id: string;
+  title: string;
+  url: string;
+  favicon: string | null;
+  closedAt: number;
+};
+
+/** A space's most recently closed tabs, newest first. */
+export function recentlyClosed(spaceId: string, limit: number): ClosedRomeTab[] {
+  return store()
+    .closedTabs.filter(
+      (entry) => entry.tab.profileId === spaceId && /^https?:/i.test(entry.tab.url),
+    )
+    .toReversed()
+    .slice(0, limit)
+    .map((entry) => ({
+      id: entry.id,
+      title: entry.tab.customTitle || entry.tab.title || entry.tab.url,
+      url: entry.tab.url,
+      favicon:
+        entry.tab.customIcon ??
+        entry.tab.favicon ??
+        knownFavicon(entry.tab.url) ??
+        siteIcon(entry.tab.url),
+      closedAt: entry.closedAt,
+    }));
+}
+
+/** Reopens a closed tab where it was. */
+export function restoreClosedTab(entryId: string) {
+  const s = store();
+  s.restoreClosed(entryId, focusedWindow(s));
+}
+
 export function wakeTab(tabId: string) {
   const tab = store().tabs[tabId];
   if (tab && !wantsPage(tab)) store().updateTab(tabId, wake(tab));

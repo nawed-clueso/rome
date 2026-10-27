@@ -51,6 +51,8 @@ export {
   setPinned,
   setTabAgentDriven,
   wakeTab,
+  recentlyClosed,
+  restoreClosedTab,
   showTabAt,
   startPictures,
   switchSpace,
@@ -58,12 +60,12 @@ export {
   tabPicture,
   watchBrowser,
 } from "./rome/model";
-export type { RomeBrowser, RomeSpace, RomeTab, SavedTab } from "./rome/model";
+export type { ClosedRomeTab, RomeBrowser, RomeSpace, RomeTab, SavedTab } from "./rome/model";
 export { onPageSwipe } from "./rome/pageSwipe";
 export { openSpaceInNewWindow, wasHandedOff } from "./rome/windows";
 export type { PageSwipe, PageSwipeAction } from "./rome/pageSwipe";
-export { addressFor, importVisits, searchEngineName, suggest } from "./rome/search";
-export type { Suggestion } from "./rome/search";
+export { addressFor, importVisits, searchEngineName, suggest, topSites } from "./rome/search";
+export type { Suggestion, TopSite } from "./rome/search";
 
 setStoreBatching(unstable_batchedUpdates);
 startPersistence();

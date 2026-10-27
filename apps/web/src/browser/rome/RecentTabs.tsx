@@ -6,7 +6,7 @@ import { SiteIcon } from "../../components/sidebar/rome/BrowserTabRow";
 import { browser, useBrowserModel } from "./browserStore";
 import { useShowTab } from "./useShowTab";
 
-const COUNT = 6;
+const COUNT = 3;
 const NO_TABS: readonly RomeTab[] = [];
 // Pictures are taken a moment after a page settles; look again now and then.
 const REFRESH_MS = 2000;

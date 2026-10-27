@@ -153,7 +153,7 @@ import {
 } from "../rightPanelStore";
 import { isPreviewSupportedInRuntime, useThreadPreviewState } from "../previewStateStore";
 import { ardiaAvailable } from "../browser/ardia/ardiaHostStore";
-import { RecentTabs } from "../browser/rome/RecentTabs";
+import { BrowseHome } from "../browser/rome/BrowseHome";
 import { SearchField } from "../browser/rome/SearchField";
 import { NewScreenBackground } from "./chat/NewScreenBackground";
 import { ClosePaneButton } from "./split/ClosePaneButton";
@@ -3498,7 +3498,7 @@ export default function ChatView(props: ChatViewProps) {
                             });
                           }}
                         />
-                        <RecentTabs />
+                        <BrowseHome />
                       </div>
                     ) : null}
                     <ComposerSurface.Shell
