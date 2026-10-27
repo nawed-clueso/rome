@@ -12,7 +12,7 @@ import { useRef, useState } from "react";
 
 import { useThreadRouteTarget } from "~/hooks/useThreadRouteTarget";
 import { cn } from "~/lib/utils";
-import { useBrowserModel } from "../../../browser/rome/browserStore";
+import { browser, useBrowserModel } from "../../../browser/rome/browserStore";
 import { fileItem } from "../../../browser/rome/folderActions";
 import {
   type FolderItem,
@@ -46,12 +46,20 @@ export function FolderMark(props: {
   readonly open: boolean;
   readonly className?: string;
 }) {
+  // A coloured folder draws its glyph in that colour, filled softly, as a space's mark is.
+  const swatch = props.folder.color
+    ? browser()?.SPACE_COLORS.find((option) => option.id === props.folder.color)?.swatch
+    : undefined;
   if (props.folder.icon) {
     return (
       <span
         aria-hidden
+        style={
+          swatch ? { background: `color-mix(in oklab, ${swatch} 28%, transparent)` } : undefined
+        }
         className={cn(
           "grid size-4 shrink-0 place-items-center text-sm leading-none",
+          swatch && "rounded-sm",
           props.className,
         )}
       >
@@ -63,6 +71,11 @@ export function FolderMark(props: {
   return (
     <Icon
       aria-hidden
+      style={
+        swatch
+          ? { color: swatch, fill: `color-mix(in oklab, ${swatch} 30%, transparent)` }
+          : undefined
+      }
       className={cn("size-4 shrink-0 text-sidebar-muted-foreground", props.className)}
     />
   );

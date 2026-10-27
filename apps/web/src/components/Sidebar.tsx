@@ -211,6 +211,7 @@ import { FolderDragLayer } from "./sidebar/rome/FolderDragLayer";
 import { applyMoveToFolder, moveToFolderMenu } from "./sidebar/rome/folderMenus";
 import { filedItems, folderItem, useFolderStore } from "../browser/rome/folderStore";
 import { SpaceDialog } from "./sidebar/rome/SpaceDialog";
+import { FolderDialog } from "./sidebar/rome/FolderDialog";
 import { useSplitViewStore } from "../splitViewStore";
 import { openNewScreen, useNewScreenStore } from "../newScreenStore";
 import { SidebarChromeFooter, SidebarChromeHeader } from "./sidebar/SidebarChrome";
@@ -2719,6 +2720,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
             newShortcutLabel={newThreadShortcutLabel ?? null}
           />
           <SpaceDialog />
+          <FolderDialog />
           <FolderDragLayer />
         </>
       ) : (

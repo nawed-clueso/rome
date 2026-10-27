@@ -123,6 +123,10 @@ export type RomeBrowserLayoutTab = typeof RomeBrowserLayoutTab.Type;
 export const RomeBrowserLayoutFolder = Schema.Struct({
   folderId: Schema.String,
   name: Schema.String,
+  /** Its emoji; null draws a plain folder. */
+  icon: Schema.NullOr(Schema.String),
+  /** One of spaceColors; null when plain. */
+  color: Schema.NullOr(Schema.String),
   spaceId: Schema.String,
   parentId: Schema.NullOr(Schema.String),
   collapsed: Schema.Boolean,
@@ -288,6 +292,7 @@ export const RomeBrowserFolderInput = Schema.Struct({
   action: Schema.Literals([
     "create",
     "rename",
+    "customize",
     "add",
     "remove",
     "ungroup",
@@ -296,10 +301,22 @@ export const RomeBrowserFolderInput = Schema.Struct({
     "expand",
   ]).annotate({
     description:
-      "add files items into the folder (tabs in folders are pinned); remove takes them out; ungroup removes the folder and keeps what it held; delete removes it and closes its tabs.",
+      "customize sets its name, emoji or colour; add files items into the folder (tabs in folders are pinned); remove takes them out; ungroup removes the folder and keeps what it held; delete removes it and closes its tabs.",
   }),
   folderId: Schema.optional(Schema.String),
-  name: Schema.optional(Schema.String.annotate({ description: "For create and rename." })),
+  name: Schema.optional(
+    Schema.String.annotate({ description: "For create, rename and customize." }),
+  ),
+  icon: Schema.optional(
+    Schema.NullOr(Schema.String).annotate({
+      description: "For create and customize: an emoji; null for a plain folder.",
+    }),
+  ),
+  color: Schema.optional(
+    Schema.NullOr(Schema.String).annotate({
+      description: "For create and customize: one of browser_layout's spaceColors; null for none.",
+    }),
+  ),
   spaceId: Schema.optional(
     Schema.String.annotate({ description: "For create: defaults to this chat's space." }),
   ),

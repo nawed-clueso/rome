@@ -26,6 +26,7 @@ import {
   splitTabKey,
   useSplitViewStore,
 } from "../../../splitViewStore";
+import { customizeFolder } from "./FolderDialog";
 
 /** The folder whose name is being typed, right after it is made or when renaming. */
 export const useFolderRename = create<{ folderId: string | null }>()(() => ({ folderId: null }));
@@ -121,6 +122,7 @@ type FolderMenuId =
   | "open-split"
   | "rename"
   | "icon"
+  | "customize"
   | `icon:${string}`
   | "icon-reset"
   | "ungroup"
@@ -169,6 +171,7 @@ export async function showFolderMenu(
         ]
       : []),
     { id: "rename", label: "Rename", icon: "pencil", separatorBefore: true },
+    { id: "customize", label: "Customize folder…" },
     {
       id: "icon",
       label: "Change icon",
@@ -218,6 +221,8 @@ export async function showFolderMenu(
     }
     case "rename":
       return startRenamingFolder(folder.id);
+    case "customize":
+      return customizeFolder(folder.id);
     case "icon-reset":
       return store.setIcon(folder.id, null);
     case "ungroup":

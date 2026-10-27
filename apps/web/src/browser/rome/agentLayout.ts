@@ -203,6 +203,8 @@ export function describeLayout(context: LayoutContext): RomeBrowserLayout {
     folders: Object.values(folders).map((folder) => ({
       folderId: folder.id,
       name: folder.name,
+      icon: folder.icon,
+      color: folder.color ?? null,
       spaceId: folder.spaceId,
       parentId: folder.parentId,
       collapsed: folder.collapsed,
@@ -529,6 +531,15 @@ const checkSpace = (item: FolderItem, spaceId: string) => {
   }
 };
 
+/** A colour id from SPACE_COLORS, or null; anything else fails. */
+const checkFolderColor = (color: string | null): string | null => {
+  if (color === null) return null;
+  const known = actions().SPACE_COLORS.map((option) => option.id);
+  return known.includes(color)
+    ? color
+    : fail(`No colour ${color}; use one of ${known.join(", ")}.`);
+};
+
 export function changeFolder(
   input: RomeBrowserFolderInput,
   context: LayoutContext,
@@ -547,9 +558,29 @@ export function changeFolder(
       const spaceId = parent?.spaceId ?? input.spaceId ?? context.spaceId;
       spaceOf(spaceId);
       for (const item of items) checkSpace(item, spaceId);
+      const color = input.color === undefined ? undefined : checkFolderColor(input.color);
       const id = store.create(spaceId, { parentId: parent?.id ?? null, name: input.name });
+      if (input.icon !== undefined || color !== undefined) {
+        useFolderStore.getState().customize(id, {
+          ...(input.icon !== undefined ? { icon: input.icon } : {}),
+          ...(color !== undefined ? { color } : {}),
+        });
+      }
       for (const item of items) fileItem(item, { spaceId, folderId: id });
       return done(`Made a folder with ${plural(items.length, "item")}.`, [id]);
+    }
+    case "customize": {
+      const folder = folderOf();
+      if (input.name === undefined && input.icon === undefined && input.color === undefined) {
+        fail("customize needs a name, icon or color.");
+      }
+      const color = input.color === undefined ? undefined : checkFolderColor(input.color);
+      store.customize(folder.id, {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.icon !== undefined ? { icon: input.icon } : {}),
+        ...(color !== undefined ? { color } : {}),
+      });
+      return done(`Updated "${useFolderStore.getState().folders[folder.id]!.name}".`, [folder.id]);
     }
     case "rename": {
       const folder = folderOf();

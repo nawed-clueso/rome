@@ -14,6 +14,8 @@ export interface RomeFolder {
   readonly name: string;
   /** An emoji the user chose; null draws a folder. */
   readonly icon: string | null;
+  /** One of the space colours (SPACE_COLORS ids) for its mark; null or absent keeps it plain. */
+  readonly color?: string | null;
   readonly collapsed: boolean;
   readonly items: readonly FolderItem[];
 }
@@ -39,6 +41,15 @@ interface FolderState {
   ) => string;
   readonly rename: (folderId: string, name: string) => void;
   readonly setIcon: (folderId: string, icon: string | null) => void;
+  /** Sets any of a folder's name, emoji and colour at once. */
+  readonly customize: (
+    folderId: string,
+    changes: {
+      readonly name?: string;
+      readonly icon?: string | null;
+      readonly color?: string | null;
+    },
+  ) => void;
   readonly setCollapsed: (folderId: string, collapsed: boolean) => void;
   /** Moves an item into a folder, or out of folders; false where it can't go. */
   readonly move: (item: FolderItem, destination: FolderDestination) => boolean;
@@ -174,6 +185,19 @@ export const useFolderStore = create<FolderState>()(
           const folder = state.folders[folderId];
           if (!folder || folder.icon === icon) return state;
           return { folders: { ...state.folders, [folderId]: { ...folder, icon } } };
+        }),
+      customize: (folderId, changes) =>
+        set((state) => {
+          const folder = state.folders[folderId];
+          if (!folder) return state;
+          const name = changes.name?.trim();
+          const next: RomeFolder = {
+            ...folder,
+            ...(name ? { name } : {}),
+            ...(changes.icon !== undefined ? { icon: changes.icon } : {}),
+            ...(changes.color !== undefined ? { color: changes.color } : {}),
+          };
+          return { folders: { ...state.folders, [folderId]: next } };
         }),
       setCollapsed: (folderId, collapsed) =>
         set((state) => {
