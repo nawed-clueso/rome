@@ -206,10 +206,18 @@ export function switchSpaceAnimated(spaceId: string, fromOffset = 0) {
       pointerEvents: "none",
       backgroundImage: backdrop,
     });
+    layer.dataset.spaceTintLayer = "";
+    // Isolated only while the layer is there, so it sits under the wrapper's content.
+    // Kept on, it would trap the sidebar under the page when the sidebar peeks.
+    wrapper.style.isolation = "isolate";
     wrapper.prepend(layer);
     layer
       .animate([{ opacity: 1 }, { opacity: 0 }], { duration: SLIDE_MS + 80, easing: "ease" })
-      .finished.finally(() => layer.remove());
+      .finished.finally(() => {
+        layer.remove();
+        if (!wrapper.querySelector(":scope > [data-space-tint-layer]"))
+          wrapper.style.isolation = "";
+      });
   }
 
   // The copies start moving on the compositor first; the next space renders after,
