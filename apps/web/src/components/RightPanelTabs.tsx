@@ -76,7 +76,7 @@ import { useBrowserDefaults } from "~/browser/browserDefaults";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { PanelTabCloseButton } from "~/components/ui/panel-tab-close-button";
 import { faviconUrlForOrigin } from "~/lib/favicon";
-import { useArdiaHostStore } from "~/browser/ardia/ardiaHostStore";
+import { ardiaAvailable, useArdiaHostStore } from "~/browser/ardia/ardiaHostStore";
 import type { ArdiaActivePage } from "@t3-ardia/entry";
 import { useTheme } from "~/hooks/useTheme";
 import { useDeviceState } from "~/state/device";
@@ -96,6 +96,8 @@ import { PierreEntryIcon } from "./chat/PierreEntryIcon";
 import { resolvePullRequestState } from "./pullRequest/pullRequestPresentation";
 import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
 import { observeResize } from "~/lib/observeResize";
+
+const NO_PROFILES: ReadonlyArray<{ readonly id: string; readonly name: string }> = [];
 
 export interface RightPanelTabsProps {
   mode: PreviewPanelMode;
@@ -986,7 +988,9 @@ function RightPanelTab(
 
 export function RightPanelTabs(props: RightPanelTabsProps) {
   const ownsDesktopTitleBar = isElectron && props.mode === "inline";
-  const browserProfiles = useBrowserDefaults().profiles;
+  // Rome's browser (Ardia) keeps its own spaces, so the built-in browser's profiles aren't offered.
+  const defaultProfiles = useBrowserDefaults().profiles;
+  const browserProfiles = ardiaAvailable ? NO_PROFILES : defaultProfiles;
   const { resolvedTheme } = useTheme();
   const ardiaPage = useArdiaHostStore((state) => state.activePage);
   const tabListRef = useRef<HTMLDivElement>(null);

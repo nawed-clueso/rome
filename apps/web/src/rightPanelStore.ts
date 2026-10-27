@@ -7,6 +7,7 @@ import { EnvironmentId, RunId, ThreadId, type ScopedThreadRef } from "@t3tools/c
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+import { isElectron } from "./env";
 import { useClosedViewStore } from "./closedViewStore";
 import { resolveStorage } from "./lib/storage";
 import type { ThreadPanelPresentation } from "./rightPanelLayout";
@@ -234,6 +235,13 @@ const singletonSurface = (
       return { id: "ardia", kind };
   }
 };
+
+/**
+ * In the desktop app the panel's browser is Rome's own (Ardia): a request for an
+ * empty browser opens it instead of the built-in preview browser.
+ */
+const romeBrowserKind = <K extends RightPanelKind>(kind: K): K | "ardia" =>
+  kind === "preview" && isElectron ? "ardia" : kind;
 
 const browserSurface = (tabId: string | null): RightPanelSurface =>
   tabId
@@ -657,9 +665,10 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
         });
         return opened;
       },
-      open: (ref, kind) =>
+      open: (ref, requested) =>
         set((state) =>
           userAction(state, scopedThreadKey(ref), (current) => {
+            const kind = romeBrowserKind(requested);
             if (kind === "preview") {
               const existing = current.surfaces.find((surface) => surface.kind === "preview");
               return upsertSurface(current, existing ?? browserSurface(null));
@@ -1052,9 +1061,10 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
             isOpen: !current.isOpen,
           })),
         ),
-      toggle: (ref, kind) =>
+      toggle: (ref, requested) =>
         set((state) =>
           userAction(state, scopedThreadKey(ref), (current) => {
+            const kind = romeBrowserKind(requested);
             const active = current.surfaces.find(
               (surface) => surface.id === current.activeSurfaceId,
             );
