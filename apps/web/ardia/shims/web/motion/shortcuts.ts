@@ -3,7 +3,7 @@ import { emitAppEvent, emitCommand } from "@ardia/shell";
 import { useBrowser } from "@ardia-app/store/browser";
 import { provideNativeModule } from "../../expo-modules-core";
 import { desktop, type DesktopShortcutInput } from "../../../bridge";
-import { requestClose, requestNewChat } from "../../../rome";
+import { requestAddress, requestClose, requestCopyUrl, requestNewChat } from "../../../rome";
 
 type Mod = "cmd" | "shift" | "alt" | "ctrl";
 type Shortcut = {
@@ -70,7 +70,8 @@ const SHORTCUTS: Shortcut[] = [
   s("Minus", ["cmd"], "zoomOut"),
   s("KeyU", ["cmd", "alt"], "viewSource"),
   s("KeyI", ["cmd", "alt"], "devTools"),
-  s("KeyC", ["cmd", "alt"], "inspectElements"),
+  // Cmd+Option+C copies the page's link, as Shift does; inspecting is Cmd+Option+I.
+  s("KeyC", ["cmd", "alt"], "copyUrl"),
   s("KeyJ", ["cmd", "alt"], "javaScriptConsole"),
   s("F12", [], "toggleDevTools"),
   s("F7", [], "caretBrowsing"),
@@ -200,14 +201,21 @@ function onKeyDown(e: KeyboardEvent) {
   e.stopPropagation();
   if (shortcut.command === "tabSwitcher")
     switcher.holding = shortcut.mods.find((m) => m !== "shift") ?? null;
-  // Rome decides what Cmd+W closes: the tab, then on to the last view.
-  if (shortcut.command === "closeTab" && requestClose()) return;
-  if (shortcut.command === "newWindow" && requestNewChat()) return;
+  if (handledByRome(shortcut.command)) return;
   emitCommand({
     command: shortcut.command,
     arg,
     windowId: useBrowser.getState().ui.focusedWindowId,
   });
+}
+
+/** Commands Rome answers itself: what Cmd+W closes, Cmd+N's chat, the address and the link. */
+function handledByRome(command: BrowserCommand): boolean {
+  if (command === "closeTab") return requestClose();
+  if (command === "newWindow") return requestNewChat();
+  if (command === "focusCommandBar") return requestAddress();
+  if (command === "copyUrl") return requestCopyUrl();
+  return false;
 }
 
 function onKeyUp(e: KeyboardEvent) {
@@ -240,8 +248,7 @@ function onPageShortcut(input: DesktopShortcutInput) {
   if (shortcut.command === "switchProfile" && !arg) return;
   if (shortcut.command === "tabSwitcher")
     switcher.holding = shortcut.mods.find((m) => m !== "shift") ?? null;
-  if (shortcut.command === "closeTab" && requestClose()) return;
-  if (shortcut.command === "newWindow" && requestNewChat()) return;
+  if (handledByRome(shortcut.command)) return;
   emitCommand({
     command: shortcut.command,
     arg,

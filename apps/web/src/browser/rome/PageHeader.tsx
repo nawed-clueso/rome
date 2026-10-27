@@ -12,6 +12,7 @@ import {
   createElement,
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
+  useEffect,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
@@ -22,8 +23,8 @@ import { SiteIcon } from "../../components/sidebar/rome/BrowserTabRow";
 import { Button } from "../../components/ui/button";
 import { isElectron } from "../../env";
 import { COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS } from "../../workspaceTitlebar";
-import { type AddressBarPlace, useAddressBarStore } from "./addressBarStore";
-import { browser, useTab } from "./browserStore";
+import { type AddressBarPlace, useAddressBarStore, useAddressEditStore } from "./addressBarStore";
+import { browser, useBrowserModel, useTab } from "./browserStore";
 import { cancelPick, pickToChat, snapshotToChat } from "./pageToChat";
 
 const splitUrl = (url: string) => {
@@ -200,6 +201,15 @@ export function AddressField(props: {
 }) {
   const { tab } = props;
   const [editing, setEditing] = useState<string | null>(null);
+  // Cmd+L opens this field with the whole address selected, as Arc does.
+  useEffect(
+    () =>
+      useAddressEditStore.subscribe((request, previous) => {
+        if (request.nonce === previous.nonce || request.tabId !== tab.id) return;
+        setEditing(useBrowserModel.getState().browser?.tabs[tab.id]?.url ?? "");
+      }),
+    [tab.id],
+  );
   const { host, rest } = splitUrl(tab.url);
   const commit = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Escape") {

@@ -21,6 +21,10 @@ declare module "@t3-ardia/entry" {
   /** Hears every tab the user opens from the sidebar. */
   export function onTabOpened(listener: (tabId: string) => void): () => void;
   export function setCloseHandler(handler: (() => void) | null): () => void;
+  /** Cmd+L while a page has focus; the handler returns false to leave it to the browser. */
+  export function setAddressHandler(handler: (() => boolean) | null): () => void;
+  /** Copying the page's link (Cmd+Option+C, Cmd+Shift+C) while a page has focus. */
+  export function setCopyUrlHandler(handler: (() => boolean) | null): () => void;
   export type RomeSpace = {
     id: string;
     name: string;

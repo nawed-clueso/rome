@@ -31,6 +31,15 @@ export const useShownTabStore = create<{ readonly tabId: string | null }>()(() =
   tabId: null,
 }));
 
+/** Cmd+L's request to edit a tab's address: each request bumps `nonce`. */
+export const useAddressEditStore = create<{
+  readonly tabId: string | null;
+  readonly nonce: number;
+}>()(() => ({ tabId: null, nonce: 0 }));
+
+export const requestAddressEdit = (tabId: string) =>
+  useAddressEditStore.setState((state) => ({ tabId, nonce: state.nonce + 1 }));
+
 /** Whether the hidden sidebar is peeking in from the window's edge. */
 export const useSidebarPeekStore = create<{ readonly peeking: boolean }>()(() => ({
   peeking: false,

@@ -67,6 +67,36 @@ export function requestSidebarToggle() {
   for (const listener of sidebarListeners) listener();
 }
 
+let addressHandler: (() => boolean) | null = null;
+
+/** Lets the app answer Cmd+L (the page's address, as Arc edits it) while a page has focus. */
+export function setAddressHandler(handler: (() => boolean) | null): () => void {
+  addressHandler = handler;
+  return () => {
+    if (addressHandler === handler) addressHandler = null;
+  };
+}
+
+/** Hands Cmd+L to the app; false when nothing took it. */
+export function requestAddress(): boolean {
+  return addressHandler?.() ?? false;
+}
+
+let copyUrlHandler: (() => boolean) | null = null;
+
+/** Lets the app copy the page's link (Cmd+Option+C, Cmd+Shift+C) and say so. */
+export function setCopyUrlHandler(handler: (() => boolean) | null): () => void {
+  copyUrlHandler = handler;
+  return () => {
+    if (copyUrlHandler === handler) copyUrlHandler = null;
+  };
+}
+
+/** Hands copying the link to the app; false when nothing took it. */
+export function requestCopyUrl(): boolean {
+  return copyUrlHandler?.() ?? false;
+}
+
 let closeHandler: (() => void) | null = null;
 
 /** Lets the app decide what Cmd+W closes while a page has focus. */

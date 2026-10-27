@@ -35,6 +35,7 @@ import { BrowserEvents } from "../browser/ardia/BrowserEvents";
 import { ardiaAvailable } from "../browser/ardia/ardiaHostStore";
 import { ThreadTabsLifecycle } from "../browser/rome/ThreadTabsLifecycle";
 import { AgentTabs } from "../browser/rome/AgentTabs";
+import { AddressShortcuts } from "../browser/rome/AddressShortcuts";
 import { SplitPanes } from "../components/split/SplitPanes";
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { registerNewScreenOpener, useNewScreenStore, type NewScreenMode } from "../newScreenStore";
@@ -235,6 +236,7 @@ function ChatRouteGlobalShortcuts() {
         onNewChat={() => openNewScreen("chat")}
       />
       <CloseViewShortcut />
+      <AddressShortcuts />
       <PageSwipeIndicator />
       {ardiaAvailable ? (
         <>

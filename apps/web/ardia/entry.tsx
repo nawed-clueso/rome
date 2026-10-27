@@ -23,7 +23,9 @@ import { startWindows } from "./rome/windows";
 export {
   onSidebarToggle,
   onTabOpened,
+  setAddressHandler,
   setCloseHandler,
+  setCopyUrlHandler,
   setNewChatHandler,
   setNewTabHandler,
 } from "./rome";
