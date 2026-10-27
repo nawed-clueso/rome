@@ -57,7 +57,7 @@ export function SpaceTabs() {
       }}
       className={cn("list-none pb-2", !tabs.length && "min-h-12")}
     >
-      <div className="flex h-6 items-center justify-between px-2 font-label text-[10.5px] text-sidebar-muted-foreground/70 uppercase tracking-[0.07em]">
+      <div className="flex h-6 items-center justify-between px-2.5 font-label text-2xs text-sidebar-muted-foreground/70 uppercase tracking-wider">
         <span>Tabs</span>
         <span>{tabs.length || ""}</span>
       </div>

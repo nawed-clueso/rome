@@ -98,15 +98,13 @@ export const BrowserTabRow = memo(function BrowserTabRow(props: {
       }}
       onContextMenu={onContextMenu}
       className={cn(
-        "group/tab flex min-w-0 cursor-pointer items-center gap-2 rounded-lg px-2 text-sm outline-hidden",
+        "group/tab flex min-w-0 cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-sm outline-hidden",
         "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-        nested ? "h-7 text-sidebar-muted-foreground" : "h-8 text-sidebar-foreground",
-        active
-          ? "bg-sidebar-row-selected text-sidebar-foreground shadow-xs/5"
-          : "hover:bg-sidebar-row-hover",
+        nested ? "h-7 text-sidebar-muted-foreground" : "h-9 text-sidebar-foreground",
+        active ? "bg-sidebar-row-active text-sidebar-foreground" : "hover:bg-sidebar-row-hover",
       )}
     >
-      <SiteIcon src={tab.favicon} className="size-3.5 shrink-0" />
+      <SiteIcon src={tab.favicon} className="size-4 shrink-0" />
       <span className="min-w-0 flex-1 truncate">{tab.title}</span>
       {driving ? (
         <BotIcon

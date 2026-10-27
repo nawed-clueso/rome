@@ -130,12 +130,12 @@ function FolderThreadRow(props: {
         props.handlers.onThreadContextMenu(threadRef, { x: event.clientX, y: event.clientY });
       }}
       className={cn(
-        "flex h-8 min-w-0 cursor-pointer items-center gap-2 rounded-lg px-2 text-sm text-sidebar-foreground outline-hidden",
+        "flex h-9 min-w-0 cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-sm text-sidebar-foreground outline-hidden",
         "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-        props.current ? "bg-sidebar-row-selected shadow-xs/5" : "hover:bg-sidebar-row-hover",
+        props.current ? "bg-sidebar-row-active" : "hover:bg-sidebar-row-hover",
       )}
     >
-      <MessageSquareIcon aria-hidden className="size-3.5 shrink-0 text-sidebar-muted-foreground" />
+      <MessageSquareIcon aria-hidden className="size-4 shrink-0 text-sidebar-muted-foreground" />
       <span className="min-w-0 flex-1 truncate">{title}</span>
     </div>
   );
@@ -230,10 +230,10 @@ function FolderNode(props: {
           menuAt({ x: event.clientX, y: event.clientY });
         }}
         className={cn(
-          "group/folder flex h-8 min-w-0 cursor-pointer items-center gap-2 rounded-lg px-2 text-sm text-sidebar-foreground outline-hidden",
+          "group/folder flex h-9 min-w-0 cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-sm text-sidebar-foreground outline-hidden",
           "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
           "data-[thread-context-over=true]:bg-sidebar-row-selected data-[thread-context-over=true]:ring-1 data-[thread-context-over=true]:ring-sidebar-foreground/25",
-          viewing ? "bg-sidebar-row-selected shadow-xs/5" : "hover:bg-sidebar-row-hover",
+          viewing ? "bg-sidebar-row-active" : "hover:bg-sidebar-row-hover",
         )}
       >
         <FolderMark folder={folder} open={open} />
