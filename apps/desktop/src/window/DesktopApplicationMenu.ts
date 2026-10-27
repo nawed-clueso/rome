@@ -161,6 +161,13 @@ export const make = Effect.gen(function* () {
     const closeViewClick = () => {
       runMenuEffect("close-view", dispatchMenuAction("rome.close-view"));
     };
+    // The page's address and link, as a browser's File and Edit menus offer them.
+    const openLocationClick = () => {
+      runMenuEffect("open-location", dispatchMenuAction("rome.open-location"));
+    };
+    const copyLinkClick = () => {
+      runMenuEffect("copy-link", dispatchMenuAction("rome.copy-link"));
+    };
     const mainContentsClick = (command: DesktopWindow.MainWindowContentsCommand) => () => {
       runMenuEffect(command, runMainContentsCommand(command));
     };
@@ -207,6 +214,12 @@ export const make = Effect.gen(function* () {
                 },
                 { type: "separator" as const },
               ]),
+          {
+            label: "Open Location...",
+            accelerator: "CmdOrCtrl+L",
+            click: openLocationClick,
+          },
+          { type: "separator" },
           // Cmd+W closes what's in front (a tab, or the chat, back to the last
           // view), never the window; the app decides what that is.
           {
@@ -228,6 +241,11 @@ export const make = Effect.gen(function* () {
           { role: "cut" },
           { role: "copy" },
           { role: "paste" },
+          {
+            label: "Copy Page Link",
+            accelerator: "Alt+CmdOrCtrl+C",
+            click: copyLinkClick,
+          },
           {
             label: "Paste as Text",
             accelerator: "CmdOrCtrl+Shift+V",

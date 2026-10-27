@@ -1112,6 +1112,14 @@ export const make = Effect.gen(function* () {
       });
     }),
     zoomMain: Effect.fn("desktop.window.zoomMain")(function* (direction) {
+      // A browser page with focus zooms itself, as in any browser; the app zooms otherwise.
+      const focused = Electron.webContents.getFocusedWebContents();
+      if (focused && !focused.isDestroyed() && focused.getType() === "webview") {
+        focused.setZoomLevel(
+          direction === "reset" ? 0 : focused.getZoomLevel() + (direction === "in" ? 0.5 : -0.5),
+        );
+        return;
+      }
       yield* Effect.annotateCurrentSpan({ direction });
       const window = yield* electronWindow.main;
       if (Option.isNone(window) || window.value.isDestroyed()) {

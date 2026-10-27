@@ -50,6 +50,13 @@ export function AddressShortcuts() {
       }
     };
     window.addEventListener("keydown", onKeyDown);
+    // File > Open Location and Edit > Copy Page Link.
+    const stopMenu = window.desktopBridge?.onMenuAction((action) => {
+      if (action === "rome.open-location") editAddress();
+      else if (action === "rome.copy-link" && !copyUrl()) {
+        toastManager.add({ type: "info", title: "No page to copy a link from" });
+      }
+    });
     let stopped = false;
     let stopAddress = () => {};
     let stopCopy = () => {};
@@ -63,6 +70,7 @@ export function AddressShortcuts() {
     return () => {
       stopped = true;
       window.removeEventListener("keydown", onKeyDown);
+      stopMenu?.();
       stopAddress();
       stopCopy();
     };

@@ -25,6 +25,7 @@ vi.mock("electron", async (importOriginal) => ({
     })),
   },
   ipcMain: { on: vi.fn(), handle: vi.fn() },
+  webContents: { getFocusedWebContents: vi.fn(() => null) },
   screen: {
     getAllDisplays: vi.fn(() => [
       {
