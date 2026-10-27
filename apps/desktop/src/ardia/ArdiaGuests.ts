@@ -304,6 +304,8 @@ export const prepareArdiaGuest = (
 
   followNavigations(guest);
   addExtensionTab(host, guest);
+  // Pinch to zoom on the trackpad, as in other browsers (Electron turns it off).
+  void guest.setVisualZoomLevelLimits(1, 3).catch(() => {});
   // Whether the tab is making sound, as Chromium hears it: silent or muted
   // autoplay videos don't count, and it clears only when every sound stops.
   guest.on("audio-state-changed", ({ audible }) =>

@@ -35,6 +35,7 @@ import { BrowserEvents } from "../browser/ardia/BrowserEvents";
 import { ardiaAvailable } from "../browser/ardia/ardiaHostStore";
 import { ThreadTabsLifecycle } from "../browser/rome/ThreadTabsLifecycle";
 import { AgentTabs } from "../browser/rome/AgentTabs";
+import { FolderOpenedTabs } from "../browser/rome/FolderOpenedTabs";
 import { AddressShortcuts } from "../browser/rome/AddressShortcuts";
 import { SplitPanes } from "../components/split/SplitPanes";
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
@@ -242,6 +243,7 @@ function ChatRouteGlobalShortcuts() {
         <>
           <ThreadTabsLifecycle />
           <AgentTabs />
+          <FolderOpenedTabs />
         </>
       ) : null}
     </>

@@ -54,6 +54,8 @@ export type RomeTab = {
   themeColor: string | null;
   /** The thread this tab was opened for, as T3 Code's scoped thread key. */
   owner: string | null;
+  /** The tab whose link opened this one (a Cmd-click or a new-window link), if any. */
+  openerId: string | null;
 };
 
 export type SavedTab = { url: string; title: string; favicon: string | null; spaceId: string };
@@ -193,6 +195,7 @@ function snapshot(s: BrowserState): RomeBrowser {
       canGoForward: !!live?.canGoForward,
       themeColor: live?.themeColor ?? null,
       owner: tab.pinned ? null : (owners[tab.id] ?? null),
+      openerId: tab.openerId ?? null,
     };
   }
   return {

@@ -47,6 +47,7 @@ declare module "@t3-ardia/entry" {
     canGoForward: boolean;
     themeColor: string | null;
     owner: string | null;
+    openerId: string | null;
   };
   export type SavedTab = { url: string; title: string; favicon: string | null; spaceId: string };
   export type RomeBrowser = {
