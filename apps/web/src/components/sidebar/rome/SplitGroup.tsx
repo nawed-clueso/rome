@@ -33,21 +33,27 @@ function MemberRow(props: {
       onContextMenu={props.onContextMenu}
       aria-current={props.current ? "page" : undefined}
       className={cn(
-        "flex h-7 min-w-0 cursor-pointer items-center gap-2 rounded-md px-2 text-left text-sm outline-hidden",
-        "hover:bg-sidebar-foreground/[0.06] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-        props.open ? "text-sidebar-foreground" : "text-sidebar-foreground/75",
+        // A tab row's height and spacing; the box's own padding makes up the rest of
+        // the inset, so icons line up with the rows outside it.
+        "flex h-9 min-w-0 cursor-pointer items-center gap-2.5 rounded-md px-1.5 text-left text-sm outline-hidden",
+        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+        props.current
+          ? "bg-sidebar-row-active text-sidebar-foreground"
+          : "hover:bg-sidebar-row-hover",
+        !props.current && (props.open ? "text-sidebar-foreground" : "text-sidebar-foreground/75"),
       )}
     >
       {tabId ? (
-        <SiteIcon src={tab?.favicon ?? null} className="size-3.5 shrink-0" />
+        <SiteIcon src={tab?.favicon ?? null} className="size-4 shrink-0" />
       ) : (
-        <span
-          aria-hidden
-          className={cn(
-            "mx-1 size-1.5 shrink-0 rounded-full",
-            props.current ? "bg-sidebar-foreground" : "bg-sidebar-foreground/30",
-          )}
-        />
+        <span aria-hidden className="grid size-4 shrink-0 place-items-center">
+          <span
+            className={cn(
+              "size-1.5 rounded-full",
+              props.current ? "bg-sidebar-foreground" : "bg-sidebar-foreground/30",
+            )}
+          />
+        </span>
       )}
       <span className="min-w-0 flex-1 truncate">
         {tabId ? (tab?.title ?? "Closed tab") : thread?.title || "Untitled"}
@@ -141,11 +147,13 @@ function SplitBox(props: { readonly group: SplitGroup; readonly routeKey: string
           onClick={() => useSplitViewStore.getState().setCollapsed(group.id, !collapsed)}
           onDoubleClick={() => setRenaming(true)}
           className={cn(
-            "group/split flex h-6 w-full cursor-pointer items-center gap-1.5 rounded-md px-2 font-medium text-sidebar-muted-foreground text-xs outline-hidden",
+            "group/split flex h-6 w-full cursor-pointer items-center gap-2.5 rounded-md px-1.5 font-medium text-sidebar-muted-foreground text-xs outline-hidden",
             "hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
           )}
         >
-          <Columns2Icon aria-hidden className="size-3" />
+          <span aria-hidden className="grid size-4 shrink-0 place-items-center">
+            <Columns2Icon className="size-3" />
+          </span>
           <span className="min-w-0 flex-1 truncate text-left">
             {group.name ?? SPLIT_DEFAULT_NAME}
           </span>
