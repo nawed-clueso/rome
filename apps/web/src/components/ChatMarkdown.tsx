@@ -141,6 +141,9 @@ import {
 } from "../markdownFileHostPath";
 import { isMarkdownFileLinkLabel } from "@t3tools/shared/markdownLinks";
 import { isElectron } from "../env";
+import { scopedThreadKey } from "@t3tools/client-runtime/environment";
+import { ardiaAvailable } from "../browser/ardia/ardiaHostStore";
+import { openLinkBesideChat } from "../browser/rome/linkBesideChat";
 import { readLocalApi } from "../localApi";
 import { cn } from "../lib/utils";
 import { resolveRemoteOpenState, useRemoteOpenResolution } from "../remoteOpen";
@@ -183,7 +186,7 @@ import {
   BrowserPreviewUnavailableError,
   BrowserSettingsReadError,
 } from "../browser/openFileInPreview";
-import { resolveLinkTarget } from "../browser/browserLinkTarget";
+import { isWebUrl, resolveLinkTarget } from "../browser/browserLinkTarget";
 import { PullRequestLinkPreview } from "./pullRequest/PullRequestLinkPreview";
 import { MarkdownCodeBlock, SuspenseShikiCodeBlock } from "./chat/MarkdownCodeBlock";
 import { MarkdownMermaidCodeBlock } from "./chat/MarkdownMermaidCodeBlock";
@@ -1166,6 +1169,22 @@ const CHAT_MARKDOWN_COMPONENTS = {
               return;
             }
             if (event.defaultPrevented) return;
+            // In Rome a plain click opens the link beside the chat, in a split; a modified
+            // click still goes to the system browser.
+            if (
+              ardiaAvailable &&
+              threadRef &&
+              isWebUrl(href) &&
+              !event.metaKey &&
+              !event.ctrlKey &&
+              !event.shiftKey &&
+              !event.altKey &&
+              openLinkBesideChat(scopedThreadKey(threadRef), href)
+            ) {
+              event.preventDefault();
+              event.stopPropagation();
+              return;
+            }
             if (
               resolveLinkTarget({
                 url: href,
