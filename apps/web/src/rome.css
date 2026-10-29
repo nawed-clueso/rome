@@ -65,6 +65,12 @@ html[data-rome] [data-slot="sidebar-wrapper"] {
   background: var(--sidebar);
 }
 
+/* Changing space crossfades the old tint over the new (browserStore's
+   switchSpaceAnimated); the wrapper holds that layer under its content. */
+html[data-rome] [data-slot="sidebar-wrapper"] {
+  isolation: isolate;
+}
+
 html[data-rome][data-space-tint] [data-slot="sidebar-wrapper"] {
   background: radial-gradient(
     120% 80% at 0% 0%,
@@ -73,8 +79,10 @@ html[data-rome][data-space-tint] [data-slot="sidebar-wrapper"] {
   );
 }
 
+/* Changing space slides the sidebar's contents sideways; they stay inside it. */
 html[data-rome] [data-slot="sidebar-inner"] {
   background: transparent;
+  overflow-x: clip;
 }
 
 html[data-rome] [data-slot="sidebar-container"] {

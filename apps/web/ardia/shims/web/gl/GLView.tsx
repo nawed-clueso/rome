@@ -13,6 +13,9 @@ type Props = {
 };
 
 const MIN_FRAME_INTERVAL = 0.9 / 60;
+// A view hidden for a moment (React parks hidden views and reconnects them, as on a
+// space change) keeps its WebGL context this long; making a new one costs a frame or more.
+const PARK_MS = 10_000;
 
 const fill: CSSProperties = {
   position: "absolute",
@@ -34,6 +37,7 @@ export function GLView({ fragment, uniformsAt, animation, style, version }: Prop
     started: false,
     done: false,
     redraw: () => {},
+    parked: null as { surface: GLSurface; fragment: string; timer: number } | null,
   });
 
   useEffect(() => {
@@ -47,7 +51,14 @@ export function GLView({ fragment, uniformsAt, animation, style, version }: Prop
       if (v.surface && v.css[0] > 0 && v.css[1] > 0) v.surface.draw(latest.current(v.css, v.time));
     };
     v.redraw = redraw;
-    const surface = new GLSurface(fragment, redraw);
+    const parked = v.parked;
+    v.parked = null;
+    if (parked) window.clearTimeout(parked.timer);
+    if (parked && parked.fragment !== fragment) parked.surface.dispose();
+    const surface =
+      parked && parked.fragment === fragment
+        ? parked.surface
+        : new GLSurface(fragment, () => v.redraw());
     v.surface = surface;
     Object.assign(surface.canvas.style, { ...fill, display: "block" });
     el.appendChild(surface.canvas);
@@ -88,8 +99,14 @@ export function GLView({ fragment, uniformsAt, animation, style, version }: Prop
       stopFrames();
       stopSize();
       surface.canvas.remove();
-      surface.dispose();
       v.surface = null;
+      // Kept for a quick reconnect; let go if the view doesn't come back.
+      const timer = window.setTimeout(() => {
+        if (v.parked?.surface !== surface) return;
+        v.parked = null;
+        surface.dispose();
+      }, PARK_MS);
+      v.parked = { surface, fragment, timer };
     };
   }, [fragment, !!animation]);
 

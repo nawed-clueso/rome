@@ -98,11 +98,15 @@ export function NewScreenBackground(props: {
     let density = 1;
     let ink: Rgb = [128, 128, 128];
     let accent: Rgb = [128, 128, 128];
+    // A space change eases the field into the next space's colour rather than jumping.
+    let accentTarget: Rgb | null = null;
     let dark = false;
     const tinted = color !== "space";
     const readColors = () => {
       ink = cssColor(canvas, "var(--foreground)", [128, 128, 128]);
-      accent = cssColor(canvas, tinted ? color : "var(--space-accent, var(--primary))", ink);
+      const next = cssColor(canvas, tinted ? color : "var(--space-accent, var(--primary))", ink);
+      if (accentTarget === null || still) accent = next;
+      accentTarget = next;
       dark = document.documentElement.classList.contains("dark");
     };
     const target = { x: 0.5, y: 0.4 };
@@ -125,6 +129,15 @@ export function NewScreenBackground(props: {
       // Nothing to draw on until the canvas has been measured.
       if (width === 0 || height === 0) return;
       const t = time / 1000;
+      const easing =
+        accentTarget !== null && accent.some((value, index) => value !== accentTarget![index]);
+      if (easing) {
+        const target = accentTarget!;
+        accent = accent.map((value, index) => {
+          const step = value + (target[index]! - value) * 0.14;
+          return Math.abs(target[index]! - step) < 0.5 ? target[index]! : step;
+        }) as unknown as Rgb;
+      }
       if (preview && !pointerInside) {
         target.x = 0.5 + 0.3 * Math.cos(t * 0.5);
         target.y = 0.5 + 0.25 * Math.sin(t * 0.8);
@@ -133,7 +146,11 @@ export function NewScreenBackground(props: {
       const follow = Math.min(1, style.follow * (preview ? 4 : 1));
       glow.x += (target.x - glow.x) * (still ? 1 : follow);
       glow.y += (target.y - glow.y) * (still ? 1 : follow);
-      if (style.timeless && Math.abs(glow.x - drawnAt.x) + Math.abs(glow.y - drawnAt.y) < 0.0005)
+      if (
+        style.timeless &&
+        !easing &&
+        Math.abs(glow.x - drawnAt.x) + Math.abs(glow.y - drawnAt.y) < 0.0005
+      )
         return;
       drawnAt = { x: glow.x, y: glow.y };
       const frame: FieldFrame = { time: t, glow, ink, accent, tinted, intensity, dark };

@@ -23,7 +23,6 @@ export function SidebarAddress() {
     // In the sidebar's own colours, as Arc keeps it: a row of controls over a soft
     // address pill. The page's colour stays with the header above the page.
     <div
-      data-space-slide=""
       onContextMenu={(event) => void showAddressBarMenu(event, "sidebar")}
       className="flex flex-col gap-1"
     >

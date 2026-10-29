@@ -231,7 +231,11 @@ function PinnedTiles() {
     state.browser?.spaceId ? (state.browser.active[state.browser.spaceId] ?? null) : null,
   );
   const onBrowse = useLocation({ select: (location) => location.pathname === "/browse" });
-  const [grid] = useAutoAnimate<HTMLDivElement>({ duration: 150 });
+  const [grid, setAnimating] = useAutoAnimate<HTMLDivElement>({ duration: 150 });
+  // The tiles only animate to make room for a tab being dragged in; left on, every
+  // other change (a space change most of all) pays to measure each tile.
+  const dragging = drag?.drop?.kind === "tiles";
+  useEffect(() => setAnimating(dragging), [dragging, setAnimating]);
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(0);
   useEffect(() => {
@@ -258,7 +262,6 @@ function PinnedTiles() {
   return (
     <div
       ref={setBox}
-      data-space-slide=""
       data-folder-drop-tiles=""
       className={cn(
         "flex flex-col gap-1.5 px-0.5 pt-2",
@@ -312,7 +315,9 @@ export function RomeSidebarTop(props: {
     startBrowserModel();
   }, [request]);
   return (
-    <div className="flex shrink-0 flex-col gap-2 px-2.5 pb-1">
+    // All of it (the space's name, address, New, apps and pinned tabs) slides with
+    // the list below as one piece when the space changes.
+    <div data-space-slide="" className="flex shrink-0 flex-col gap-2 px-2.5 pb-1">
       <SpaceSwitcher />
       <SidebarAddress />
       <button

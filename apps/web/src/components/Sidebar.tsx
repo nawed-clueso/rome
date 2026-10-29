@@ -1746,8 +1746,11 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   // so a new layout key alone also triggers it.
   const listMotionPass = { layoutKey: listMotionLayoutKey, animate: listMotionAnimate };
   useLayoutEffect(() => {
-    // A space change slides the whole list sideways; rows don't also move on their own.
-    listMotionRef.current?.update(listMotionPass.animate && !isSwitchingSpace());
+    // A space change slides the whole list sideways; rows don't also move on their own,
+    // and aren't measured either (that forces a layout mid-slide). The next pass after
+    // the slide takes fresh positions.
+    if (isSwitchingSpace()) listMotionRef.current?.suspend();
+    else listMotionRef.current?.update(listMotionPass.animate);
   }, [listMotionPass]);
   const handleThreadDragOver = (event: DragOverEvent) => {
     const target = event.over
