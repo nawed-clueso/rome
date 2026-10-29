@@ -26,6 +26,14 @@ const PARKED: CSSProperties = {
  * ElectronBrowserHost, so tabs keep running across thread switches; a panel's
  * ArdiaSurface only reports where the window should appear.
  */
+/** Whether the page's top is its card's top, as when the address bar is in the sidebar. */
+function startsAtCardTop(rect: { readonly y: number }): boolean {
+  const card = document
+    .querySelector(`[data-browser-surface-slot="${ARDIA_SURFACE_ID}"]`)
+    ?.closest('[data-slot="sidebar-inset"]');
+  return card ? Math.abs(card.getBoundingClientRect().top - rect.y) <= 2 : false;
+}
+
 export function ArdiaHost() {
   const requested = useArdiaHostStore((state) => state.requested);
   const presentation = useBrowserSurfaceStore((state) => state.byTabId[ARDIA_SURFACE_ID]);
@@ -47,11 +55,18 @@ export function ArdiaHost() {
         width: rect.width,
         height: rect.height,
         zIndex: presentation?.zIndex,
-        // The page ends where its card does, so it takes the card's bottom corners.
+        // The page ends where its card does, so it takes the card's bottom corners, and
+        // its top ones too when no toolbar sits above it.
         ...(presentation?.cornerRadius
           ? {
               borderBottomLeftRadius: presentation.cornerRadius,
               borderBottomRightRadius: presentation.cornerRadius,
+              ...(startsAtCardTop(rect)
+                ? {
+                    borderTopLeftRadius: presentation.cornerRadius,
+                    borderTopRightRadius: presentation.cornerRadius,
+                  }
+                : {}),
               overflow: "hidden",
             }
           : {}),

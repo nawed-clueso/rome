@@ -410,7 +410,7 @@ export function setParked(next: boolean) {
 const cornerOf = (element: Element | null) => {
   if (!element) return "";
   const style = getComputedStyle(element);
-  return `0 0 ${style.borderBottomRightRadius} ${style.borderBottomLeftRadius}`;
+  return `${style.borderTopLeftRadius} ${style.borderTopRightRadius} ${style.borderBottomRightRadius} ${style.borderBottomLeftRadius}`;
 };
 
 // Pages an agent is working in. Out of view they stay drawn: transparent, behind
@@ -465,7 +465,7 @@ function place(entry: PoolEntry) {
     height: `${height}px`,
     visibility: "visible",
     pointerEvents: unseen ? "none" : "auto",
-    // The page takes the bottom corners of the card it fills.
+    // The page takes the corners of the card it fills (its top ones only with no toolbar above).
     borderRadius: cornerOf(external ?? root?.closest("[data-ardia-host]") ?? null),
     ...(revealing || unseen ? { opacity: "0" } : entry.revealFrame ? {} : { opacity: "" }),
   });
