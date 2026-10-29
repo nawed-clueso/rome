@@ -25,6 +25,10 @@ declare module "@t3-ardia/entry" {
   export function setAddressHandler(handler: (() => boolean) | null): () => void;
   /** Copying the page's link (Cmd+Option+C, Cmd+Shift+C) while a page has focus. */
   export function setCopyUrlHandler(handler: (() => boolean) | null): () => void;
+  export type RomeCommand = "newSpace" | "nextSpace" | "previousSpace" | "pinTab" | "splitView";
+  export function setRomeCommandHandler(
+    handler: ((command: RomeCommand) => boolean) | null,
+  ): () => void;
   export type RomeSpace = {
     id: string;
     name: string;

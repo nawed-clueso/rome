@@ -97,6 +97,26 @@ export function requestCopyUrl(): boolean {
   return copyUrlHandler?.() ?? false;
 }
 
+/** Arc's keys Rome answers itself, rather than the browser inside it. */
+export type RomeCommand = "newSpace" | "nextSpace" | "previousSpace" | "pinTab" | "splitView";
+
+let commandHandler: ((command: RomeCommand) => boolean) | null = null;
+
+/** Lets the app take Arc's space, pin and split keys. */
+export function setRomeCommandHandler(
+  handler: ((command: RomeCommand) => boolean) | null,
+): () => void {
+  commandHandler = handler;
+  return () => {
+    if (commandHandler === handler) commandHandler = null;
+  };
+}
+
+/** Hands one of Arc's keys to the app; false when nothing took it. */
+export function requestRomeCommand(command: RomeCommand): boolean {
+  return commandHandler?.(command) ?? false;
+}
+
 let closeHandler: (() => void) | null = null;
 
 /** Lets the app decide what Cmd+W closes while a page has focus. */

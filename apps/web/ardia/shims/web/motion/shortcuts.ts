@@ -3,7 +3,14 @@ import { emitAppEvent, emitCommand } from "@ardia/shell";
 import { useBrowser } from "@ardia-app/store/browser";
 import { provideNativeModule } from "../../expo-modules-core";
 import { desktop, type DesktopShortcutInput } from "../../../bridge";
-import { requestAddress, requestClose, requestCopyUrl, requestNewChat } from "../../../rome";
+import {
+  requestAddress,
+  requestClose,
+  requestCopyUrl,
+  requestNewChat,
+  requestRomeCommand,
+  type RomeCommand,
+} from "../../../rome";
 
 type Mod = "cmd" | "shift" | "alt" | "ctrl";
 type Shortcut = {
@@ -13,6 +20,8 @@ type Shortcut = {
   arg?: string | ((e: KeyboardEvent) => string | null);
   notInText?: boolean;
   reserved?: boolean;
+  /** Rome answers this key itself, as Arc does; the browser's command is the fallback. */
+  rome?: RomeCommand;
 };
 
 const s = (
@@ -30,7 +39,7 @@ const SHORTCUTS: Shortcut[] = [
   s("KeyT", ["cmd", "alt"], "newTabInGroup"),
   s("KeyT", ["cmd", "shift"], "reopenClosedTab", { reserved: true }),
   s("KeyN", ["cmd"], "newWindow", { reserved: true }),
-  s("KeyN", ["cmd", "shift"], "newIncognitoWindow", { reserved: true }),
+  s("KeyN", ["cmd", "shift"], "newIncognitoWindow", { reserved: true, rome: "newSpace" }),
   s("KeyN", ["cmd", "alt"], "newLittleArdia"),
   s("KeyN", ["cmd", "ctrl"], "newGroupWithTabs"),
   s("KeyO", ["cmd"], "openFile"),
@@ -61,6 +70,7 @@ const SHORTCUTS: Shortcut[] = [
   s("KeyL", ["cmd", "shift"], "toggleSidebar"),
   s("KeyF", ["cmd", "shift"], "toggleSidebar"),
   s("Equal", ["ctrl", "shift"], "openSplitPane"),
+  s("Equal", ["cmd", "alt"], "openSplitPane", { rome: "splitView" }),
   s("BracketRight", ["ctrl", "shift"], "focusNextPane"),
   s("BracketLeft", ["ctrl", "shift"], "focusPreviousPane"),
   s("KeyB", ["cmd", "shift"], "toggleBookmarksBar"),
@@ -88,8 +98,8 @@ const SHORTCUTS: Shortcut[] = [
   s("ArrowRight", ["cmd"], "forward", { notInText: true }),
   s("BracketRight", ["cmd", "shift"], "nextTab", { reserved: true }),
   s("BracketLeft", ["cmd", "shift"], "previousTab", { reserved: true }),
-  s("ArrowRight", ["cmd", "alt"], "nextTab", { reserved: true }),
-  s("ArrowLeft", ["cmd", "alt"], "previousTab", { reserved: true }),
+  s("ArrowRight", ["cmd", "alt"], "nextTab", { reserved: true, rome: "nextSpace" }),
+  s("ArrowLeft", ["cmd", "alt"], "previousTab", { reserved: true, rome: "previousSpace" }),
   s("PageDown", ["ctrl"], "nextTab", { reserved: true }),
   s("PageUp", ["ctrl"], "previousTab", { reserved: true }),
   s("ArrowDown", ["cmd", "alt"], "nextTab"),
@@ -100,7 +110,7 @@ const SHORTCUTS: Shortcut[] = [
   s("Tab", ["ctrl"], "tabSwitcher", { arg: "forward", reserved: true }),
   s("Tab", ["ctrl", "shift"], "tabSwitcher", { arg: "backward", reserved: true }),
   s("Enter", ["cmd"], "returnToPinnedUrl", { notInText: true }),
-  s("KeyD", ["cmd"], "bookmarkPage"),
+  s("KeyD", ["cmd"], "bookmarkPage", { rome: "pinTab" }),
   s("KeyD", ["cmd", "shift"], "bookmarkAllTabs"),
   s("KeyB", ["cmd", "alt"], "manageBookmarks"),
   s("KeyY", ["cmd"], "showHistory"),
@@ -201,6 +211,7 @@ function onKeyDown(e: KeyboardEvent) {
   e.stopPropagation();
   if (shortcut.command === "tabSwitcher")
     switcher.holding = shortcut.mods.find((m) => m !== "shift") ?? null;
+  if (shortcut.rome && requestRomeCommand(shortcut.rome)) return;
   if (handledByRome(shortcut.command)) return;
   emitCommand({
     command: shortcut.command,
@@ -248,6 +259,7 @@ function onPageShortcut(input: DesktopShortcutInput) {
   if (shortcut.command === "switchProfile" && !arg) return;
   if (shortcut.command === "tabSwitcher")
     switcher.holding = shortcut.mods.find((m) => m !== "shift") ?? null;
+  if (shortcut.rome && requestRomeCommand(shortcut.rome)) return;
   if (handledByRome(shortcut.command)) return;
   emitCommand({
     command: shortcut.command,

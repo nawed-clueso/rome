@@ -28,6 +28,7 @@ export {
   setCopyUrlHandler,
   setNewChatHandler,
   setNewTabHandler,
+  setRomeCommandHandler,
 } from "./rome";
 export {
   SPACE_COLORS,
