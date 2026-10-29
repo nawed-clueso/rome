@@ -13,6 +13,7 @@ import { ChevronDownIcon } from "lucide-react";
 import {
   memo,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -66,6 +67,9 @@ function resolveRenameCommit(input: {
 // needs this: it swallows input while open, so the wait must cover the OS
 // double-click interval.
 const TITLE_MENU_OPEN_DELAY_MS = 500;
+// Space between the breadcrumb row's end and the panel buttons.
+const CONTROLS_GAP = 8;
+
 export const ChatHeader = memo(function ChatHeader({
   activeThreadEnvironmentId,
   activeThreadId,
@@ -111,6 +115,38 @@ export const ChatHeader = memo(function ChatHeader({
       ? renaming.title
       : null;
   const isRenamingTitle = renamingTitle !== null;
+  // The panel buttons float over the header's right end, and how wide they are changes
+  // (a panel open, a split's close button), so the row stops short of wherever they start.
+  useLayoutEffect(() => {
+    const row = breadcrumbContainerRef.current;
+    const header = row?.closest("header");
+    if (!row || !header) return;
+    let observed: Element | null = null;
+    const fit = () => {
+      const controls = header.querySelector("[data-workspace-titlebar-controls]");
+      if (controls !== observed) {
+        if (observed) resize.unobserve(observed);
+        if (controls) resize.observe(controls);
+        observed = controls;
+      }
+      const start = controls?.getBoundingClientRect();
+      if (!start || start.width === 0) {
+        row.style.removeProperty("padding-right");
+        return;
+      }
+      const overlap = row.getBoundingClientRect().right - start.left;
+      row.style.paddingRight = `${Math.max(0, Math.ceil(overlap + CONTROLS_GAP))}px`;
+    };
+    const resize = new ResizeObserver(fit);
+    resize.observe(header);
+    const mutations = new MutationObserver(fit);
+    mutations.observe(header, { childList: true, subtree: true });
+    fit();
+    return () => {
+      resize.disconnect();
+      mutations.disconnect();
+    };
+  }, []);
   useEffect(() => {
     const list = breadcrumbContainerRef.current?.querySelector("ol");
     if (!list || !parentThreadLink) return;
@@ -269,7 +305,7 @@ export const ChatHeader = memo(function ChatHeader({
     <div
       ref={breadcrumbContainerRef}
       className={cn(
-        "flex min-w-0 flex-1 items-center gap-2 sm:gap-3",
+        "@container/chat-header flex min-w-0 flex-1 items-center gap-2 sm:gap-3",
         rightPanelOpen ? "pr-10" : "pr-24",
       )}
       onContextMenu={handleHeaderContextMenu}
@@ -293,7 +329,8 @@ export const ChatHeader = memo(function ChatHeader({
                   }
                 >
                   <ProjectFavicon project={activeProject} className="size-3.5" />
-                  <WorkspaceBreadcrumbText className="max-w-40">
+                  {/* A narrow header keeps the project's icon, leaving room for the title. */}
+                  <WorkspaceBreadcrumbText className="max-w-40 @max-md/chat-header:hidden">
                     {activeProjectName}
                   </WorkspaceBreadcrumbText>
                 </TooltipTrigger>
