@@ -16,6 +16,8 @@ export interface SplitGroup {
   readonly collapsed?: boolean;
   /** What the user called it; unnamed splits show as "Split view". */
   readonly name?: string;
+  /** One of the space colours (SPACE_COLORS ids) for its box; absent keeps it plain. */
+  readonly color?: string;
 }
 
 export type SplitSide = "left" | "right" | "top" | "bottom";
@@ -86,6 +88,8 @@ interface SplitViewState {
   readonly setCollapsed: (groupId: string, collapsed: boolean) => void;
   /** Names a split; a blank name goes back to "Split view". */
   readonly rename: (groupId: string, name: string) => void;
+  /** Colours a split's box; null makes it plain again. */
+  readonly setColor: (groupId: string, color: string | null) => void;
   /**
    * Lays a split out as `rows`, or makes a new one when `groupId` is null.
    * Members come out of any other split; members it held but `rows` leaves out
@@ -134,6 +138,20 @@ export const useSplitViewStore = create<SplitViewState>()(
       rowWeights: {},
       place: (mainKey, threadKey, placement) => {
         if (threadKey === mainKey || threadKey === placement.target) return false;
+        const current = get().groups;
+        const home = splitGroupOf(current, threadKey);
+        // A pane moved within its own split keeps the split, and its id, through the move.
+        if (home && home === splitGroupOf(current, mainKey)) {
+          const remaining = home.rows
+            .map((row) => row.filter((key) => key !== threadKey))
+            .filter((row) => row.length > 0);
+          const rows = placeInRows(remaining, threadKey, placement);
+          if (!rows) return false;
+          set({
+            groups: current.map((group) => (group.id === home.id ? { ...group, rows } : group)),
+          });
+          return true;
+        }
         // A chat dragged out of another split leaves it first.
         const groups = withoutMember(get().groups, threadKey);
         const host = splitGroupOf(groups, mainKey);
@@ -204,6 +222,14 @@ export const useSplitViewStore = create<SplitViewState>()(
             if (group.id !== groupId) return group;
             const { name: _old, ...rest } = group;
             return name.trim() ? { ...rest, name: name.trim() } : rest;
+          }),
+        })),
+      setColor: (groupId, color) =>
+        set((state) => ({
+          groups: state.groups.map((group) => {
+            if (group.id !== groupId) return group;
+            const { color: _old, ...rest } = group;
+            return color ? { ...rest, color } : rest;
           }),
         })),
     }),

@@ -41,6 +41,8 @@ export interface ThreadContextDragGhost {
   readonly count: number;
   /** Set when a browser tab is dragged rather than chats. */
   readonly tabId?: string;
+  /** The split key of the one chat or tab dragged, so a pane already in the split moves. */
+  readonly splitKey?: string;
 }
 
 let ghost: ThreadContextDragGhost | null = null;
@@ -78,9 +80,17 @@ function findDropTarget(point: { x: number; y: number }): HTMLElement | null {
   );
 }
 
+/**
+ * While a row is dragged out of the sidebar, pages let the pointer through: a page takes
+ * the pointer for itself, so over one the app would lose the drag and its drop zones.
+ */
+export function setSidebarDragging(dragging: boolean) {
+  document.body.toggleAttribute("data-sidebar-dragging", dragging);
+}
+
 export function moveThreadContextDrag(
   point: { x: number; y: number },
-  label: { title: string; count: number; tabId?: string },
+  label: { title: string; count: number; tabId?: string; splitKey?: string },
 ) {
   const target = findDropTarget(point);
   if (target !== overTarget) {

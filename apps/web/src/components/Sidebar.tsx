@@ -5,6 +5,7 @@ import {
   dropThreadContext,
   endThreadContextDrag,
   moveThreadContextDrag as moveThreadContextDragGhost,
+  setSidebarDragging,
 } from "./chat/threadContextDrag";
 import { discardComposerDraft } from "../lib/discardComposerDraft";
 import { requestCustomSnooze } from "./CustomSnoozeDialog";
@@ -1452,6 +1453,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     dragSensorRef.current = null;
     contextDragKeyRef.current = null;
     endThreadContextDrag();
+    setSidebarDragging(false);
     if (started) {
       listMotionRef.current?.release();
       setDragState(null);
@@ -1506,7 +1508,11 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     const threads = contextDragThreads();
     const title =
       threadByKeyRef.current.get(contextDragKeyRef.current ?? "")?.title.trim() || "Thread";
-    moveThreadContextDragGhost(point, { title, count: threads.length });
+    moveThreadContextDragGhost(point, {
+      title,
+      count: threads.length,
+      ...(threads.length === 1 ? { splitKey: scopedThreadKey(threads[0]!) } : {}),
+    });
     return true;
   };
   const dropThreadContextDrag = (point: { x: number; y: number }) => {
@@ -1657,6 +1663,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     } else {
       dragLabelOffsetRef.current = 0;
     }
+    setSidebarDragging(true);
     setDragState({
       activeKey,
       activeSection,

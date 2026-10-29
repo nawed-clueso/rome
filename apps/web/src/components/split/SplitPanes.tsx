@@ -9,6 +9,7 @@ import {
   type SplitPlacement,
   type SplitSide,
   splitGroupOf,
+  splitMembers,
   splitTabKey,
   useSplitViewStore,
 } from "../../splitViewStore";
@@ -76,11 +77,14 @@ function previewAt(
   columnWeights: Readonly<Record<string, number>>,
   rowWeights: readonly number[] | undefined,
   tab: boolean,
+  moving: string | undefined,
 ): Preview {
   for (const element of tab
     ? []
     : document.querySelectorAll<HTMLElement>("[data-thread-context-drop]")) {
     if (element.closest("[data-split-drop-zone]")) continue;
+    // A pane being moved isn't a place to drop it.
+    if (moving && element.closest(`[data-split-pane="${CSS.escape(moving)}"]`)) continue;
     const rect = rectOf(element);
     if (rect.width > 0 && contains(rect, point)) return { kind: "context", rect, element };
   }
@@ -90,6 +94,7 @@ function previewAt(
   let targetRect: Rect | null = null;
   let nearest = Number.POSITIVE_INFINITY;
   for (const [key, rect] of panes) {
+    if (key === moving) continue;
     const cx = Math.max(rect.x, Math.min(point.x, rect.x + rect.width));
     const cy = Math.max(rect.y, Math.min(point.y, rect.y + rect.height));
     const distance = Math.hypot(point.x - cx, point.y - cy);
@@ -100,7 +105,11 @@ function previewAt(
     }
   }
   if (!target || !targetRect) return null;
-  const rows = group?.rows ?? [[mainKey]];
+  // A pane already in the split leaves its place for the one it moves to.
+  const rows = (group?.rows ?? [[mainKey]])
+    .map((row) => row.filter((key) => key !== moving))
+    .filter((row) => row.length > 0);
+  if (rows.length === 0) return null;
   const fx = (point.x - targetRect.x) / targetRect.width;
   const fy = (point.y - targetRect.y) / targetRect.height;
   const sides = (
@@ -156,15 +165,22 @@ function SplitDropZone({ mainKey }: { mainKey: string }) {
   const columnWeights = useSplitViewStore((state) => state.columnWeights);
   const rowWeights = useSplitViewStore((state) => (group ? state.rowWeights[group.id] : undefined));
   const place = useSplitViewStore((state) => state.place);
+  // The pane a drop lands beside: the split's main one, or another when that is what moves.
+  const anchorFor = (moving: string) =>
+    moving !== mainKey
+      ? mainKey
+      : ((group ? splitMembers(group).find((key) => key !== moving) : undefined) ?? mainKey);
 
   useThreadContextDrop(zone, NO_ENVIRONMENT, "split-zone", (refs) => {
     const point = currentThreadContextDragGhost();
     if (!point) return;
-    const preview = previewAt(point, mainKey, group, columnWeights, rowWeights, false);
+    const moving = point.splitKey;
+    const preview = previewAt(point, mainKey, group, columnWeights, rowWeights, false, moving);
     if (preview?.kind === "context") {
       preview.element.dispatchEvent(new CustomEvent(THREAD_CONTEXT_DROP_EVENT, { detail: refs }));
     } else if (preview?.kind === "split" && refs[0]) {
-      place(mainKey, scopedThreadKey(refs[0]), preview.placement);
+      const key = scopedThreadKey(refs[0]);
+      place(anchorFor(key), key, preview.placement);
     }
   });
 
@@ -172,8 +188,9 @@ function SplitDropZone({ mainKey }: { mainKey: string }) {
   const dropTab = useEffectEvent((tabId: string) => {
     const point = currentThreadContextDragGhost();
     if (!point) return;
-    const preview = previewAt(point, mainKey, group, columnWeights, rowWeights, true);
-    if (preview?.kind === "split") place(mainKey, splitTabKey(tabId), preview.placement);
+    const key = splitTabKey(tabId);
+    const preview = previewAt(point, mainKey, group, columnWeights, rowWeights, true, key);
+    if (preview?.kind === "split") place(anchorFor(key), key, preview.placement);
   });
   useEffect(() => {
     const element = zone.current;
@@ -184,7 +201,7 @@ function SplitDropZone({ mainKey }: { mainKey: string }) {
   }, []);
 
   const preview = ghost
-    ? previewAt(ghost, mainKey, group, columnWeights, rowWeights, !!ghost.tabId)
+    ? previewAt(ghost, mainKey, group, columnWeights, rowWeights, !!ghost.tabId, ghost.splitKey)
     : null;
   return (
     <div

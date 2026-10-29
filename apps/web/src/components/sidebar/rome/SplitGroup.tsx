@@ -10,9 +10,11 @@ import { readLocalApi } from "~/localApi";
 import { cn } from "~/lib/utils";
 import { type SplitGroup, splitMembers, splitTabId, useSplitViewStore } from "~/splitViewStore";
 import { useThreadShell } from "~/state/entities";
-import { useBrowserModel, useTab } from "../../../browser/rome/browserStore";
+import { browser, useBrowserModel, useTab } from "../../../browser/rome/browserStore";
 import { spaceOfThread, useThreadSpaceStore } from "../../../browser/rome/threadSpaceStore";
+import { folderItem } from "../../../browser/rome/folderStore";
 import { SiteIcon } from "./BrowserTabRow";
+import { startFolderDrag } from "./folderDrag";
 import { buildThreadRouteParams } from "~/threadRoutes";
 import { splitRoute } from "../../split/splitRoute";
 
@@ -26,9 +28,19 @@ function MemberRow(props: {
   const tabId = splitTabId(props.threadKey);
   const thread = useThreadShell(tabId ? null : parseScopedThreadKey(props.threadKey));
   const tab = useTab(tabId ?? "");
+  const title = tabId ? (tab?.title ?? "Closed tab") : thread?.title || "Untitled";
   return (
     <button
       type="button"
+      // Dragged out over the content, a pane moves within the split (or becomes a
+      // chat's context), as any sidebar row does.
+      onPointerDown={(event) =>
+        startFolderDrag(
+          event,
+          tabId ? folderItem.tab(tabId) : folderItem.thread(props.threadKey),
+          title,
+        )
+      }
       onClick={props.onOpen}
       onContextMenu={props.onContextMenu}
       aria-current={props.current ? "page" : undefined}
@@ -55,14 +67,21 @@ function MemberRow(props: {
           />
         </span>
       )}
-      <span className="min-w-0 flex-1 truncate">
-        {tabId ? (tab?.title ?? "Closed tab") : thread?.title || "Untitled"}
-      </span>
+      <span className="min-w-0 flex-1 truncate">{title}</span>
     </button>
   );
 }
 
 const SPLIT_DEFAULT_NAME = "Split view";
+
+type SplitMenuId =
+  | "open"
+  | "rename"
+  | "color"
+  | `color:${string}`
+  | "collapse"
+  | "separate"
+  | "leave";
 
 function SplitNameInput(props: { readonly group: SplitGroup; readonly onDone: () => void }) {
   const [draft, setDraft] = useState(props.group.name ?? "");
@@ -84,7 +103,7 @@ function SplitNameInput(props: { readonly group: SplitGroup; readonly onDone: ()
         else if (event.key === "Escape") finish(false);
       }}
       onBlur={() => finish(true)}
-      className="h-6 w-full min-w-0 rounded-md bg-sidebar-foreground/[0.06] px-2 text-sm text-sidebar-foreground outline-hidden ring-1 ring-ring"
+      className="h-9 w-full min-w-0 rounded-md bg-sidebar-foreground/[0.06] px-2.5 text-sm text-sidebar-foreground outline-hidden ring-1 ring-ring"
     />
   );
 }
@@ -113,24 +132,63 @@ function SplitBox(props: { readonly group: SplitGroup; readonly routeKey: string
     event.stopPropagation();
     const api = readLocalApi();
     if (!api) return;
+    const colors = browser()?.SPACE_COLORS ?? [];
     const choice = await api.contextMenu
-      .show<"rename" | "separate" | "leave">(
+      .show<SplitMenuId>(
         [
-          { id: "rename", label: "Rename" },
-          { id: "separate", label: "Separate tabs" },
-          ...(threadKey ? [{ id: "leave" as const, label: "Remove from split" }] : []),
+          { id: "open", label: "Open split" },
+          { id: "rename", label: "Rename…", separatorBefore: true },
+          {
+            id: "color",
+            label: "Colour",
+            children: [
+              { id: "color:none", label: "None", checked: !group.color },
+              ...colors.map((option) => ({
+                id: `color:${option.id}` as const,
+                label: option.name,
+                checked: group.color === option.id,
+              })),
+            ],
+          },
+          { id: "collapse", label: collapsed ? "Expand" : "Collapse" },
+          ...(threadKey
+            ? [{ id: "leave" as const, label: "Remove from split", separatorBefore: true }]
+            : []),
+          {
+            id: "separate",
+            label: "Separate tabs",
+            ...(threadKey ? {} : { separatorBefore: true }),
+          },
         ],
         { x: event.clientX, y: event.clientY },
       )
       .catch(() => null);
-    if (choice === "rename") setRenaming(true);
-    else if (choice === "separate") useSplitViewStore.getState().separate(group.id);
-    else if (choice === "leave" && threadKey) useSplitViewStore.getState().leave(threadKey);
+    const store = useSplitViewStore.getState();
+    if (choice?.startsWith("color:")) {
+      const color = choice.slice("color:".length);
+      store.setColor(group.id, color === "none" ? null : color);
+    } else if (choice === "open") openMember(threadKey ?? members[0]!);
+    else if (choice === "rename") setRenaming(true);
+    else if (choice === "collapse") store.setCollapsed(group.id, !collapsed);
+    else if (choice === "separate") store.separate(group.id);
+    else if (choice === "leave" && threadKey) store.leave(threadKey);
   };
+  // A coloured split tints its box and its mark, as a coloured folder does.
+  const swatch = group.color
+    ? browser()?.SPACE_COLORS.find((option) => option.id === group.color)?.swatch
+    : undefined;
 
   return (
     <div
       onContextMenu={(event) => void showMenu(event, null)}
+      style={
+        swatch
+          ? {
+              backgroundColor: `color-mix(in oklab, ${swatch} ${open ? 16 : 10}%, transparent)`,
+              ["--tw-ring-color" as string]: `color-mix(in oklab, ${swatch} ${open ? 45 : 28}%, transparent)`,
+            }
+          : undefined
+      }
       className={cn(
         "rounded-xl p-1 ring-1 ring-inset transition-colors",
         open
@@ -146,18 +204,25 @@ function SplitBox(props: { readonly group: SplitGroup; readonly routeKey: string
           aria-expanded={!collapsed}
           onClick={() => useSplitViewStore.getState().setCollapsed(group.id, !collapsed)}
           onDoubleClick={() => setRenaming(true)}
+          // A tab row's height and type, so the list keeps one rhythm.
           className={cn(
-            "group/split flex h-6 w-full cursor-pointer items-center gap-2.5 rounded-md px-1.5 font-medium text-sidebar-muted-foreground text-xs outline-hidden",
-            "hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+            "group/split flex h-9 w-full cursor-pointer items-center gap-2.5 rounded-md px-1.5 text-sidebar-foreground text-sm outline-hidden",
+            "hover:bg-sidebar-row-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
           )}
         >
-          <span aria-hidden className="grid size-4 shrink-0 place-items-center">
-            <Columns2Icon className="size-3" />
+          <span
+            aria-hidden
+            style={swatch ? { color: swatch } : undefined}
+            className="grid size-4 shrink-0 place-items-center text-sidebar-muted-foreground"
+          >
+            <Columns2Icon className="size-4" />
           </span>
           <span className="min-w-0 flex-1 truncate text-left">
             {group.name ?? SPLIT_DEFAULT_NAME}
           </span>
-          <span>{members.length}</span>
+          <span className="text-sidebar-muted-foreground text-xs tabular-nums">
+            {members.length}
+          </span>
           <ChevronRightIcon
             aria-hidden
             className={cn(

@@ -1,5 +1,5 @@
 import { AuthPreviewOperateScope } from "@t3tools/contracts";
-import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
+import { Outlet, createFileRoute, redirect, useLocation } from "@tanstack/react-router";
 import { useAtomValue } from "@effect/atom-react";
 import { useEffect, useEffectEvent } from "react";
 
@@ -39,6 +39,7 @@ import { FolderOpenedTabs } from "../browser/rome/FolderOpenedTabs";
 import { AddressShortcuts } from "../browser/rome/AddressShortcuts";
 import { ArcShortcuts } from "../browser/rome/ArcShortcuts";
 import { SplitPanes } from "../components/split/SplitPanes";
+import { splitMembers, useSplitViewStore } from "../splitViewStore";
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { registerNewScreenOpener, useNewScreenStore, type NewScreenMode } from "../newScreenStore";
 
@@ -256,6 +257,14 @@ function ChatRouteLayout() {
   // Both thread routes render here, not in their own leaf components, so the
   // draft-to-thread promotion keeps one ChatView mounted across the swap.
   const threadTarget = useThreadRouteTarget();
+  // A split of only tabs has no chat route; chats still drop into it, beside its first pane.
+  const splitPageId = useLocation({
+    select: (location) => /^\/split\/([^/]+)/.exec(location.pathname)?.[1] ?? null,
+  });
+  const splitPageMember = useSplitViewStore((state) => {
+    const group = splitPageId ? state.groups.find((entry) => entry.id === splitPageId) : null;
+    return group ? (splitMembers(group)[0] ?? null) : null;
+  });
   return (
     <>
       <ChatRouteGlobalShortcuts />
@@ -265,7 +274,9 @@ function ChatRouteLayout() {
       {threadTarget ? <ThreadRouteView target={threadTarget} /> : <Outlet />}
       <SplitPanes
         primaryThreadKey={
-          threadTarget?.kind === "server" ? scopedThreadKey(threadTarget.threadRef) : null
+          threadTarget?.kind === "server"
+            ? scopedThreadKey(threadTarget.threadRef)
+            : splitPageMember
         }
       />
     </>

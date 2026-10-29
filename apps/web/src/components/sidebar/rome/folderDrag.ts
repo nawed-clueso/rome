@@ -3,6 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import { useSyncExternalStore } from "react";
 
 import { browser, useBrowserModel } from "../../../browser/rome/browserStore";
+import { splitTabKey } from "../../../splitViewStore";
 import { fileItem, unfileTab } from "../../../browser/rome/folderActions";
 import {
   type FolderItem,
@@ -17,6 +18,7 @@ import {
   dropThreadContext,
   endThreadContextDrag,
   moveThreadContextDrag,
+  setSidebarDragging,
 } from "../../chat/threadContextDrag";
 
 // Drop targets mark themselves with these attributes:
@@ -195,13 +197,22 @@ export function startFolderDrag(
       if (Math.hypot(x - startX, y - startY) < DRAG_DISTANCE) return;
       dragging = true;
       document.body.style.cursor = "grabbing";
+      setSidebarDragging(true);
       document.body.style.userSelect = "none";
       window.getSelection()?.removeAllRanges();
     }
     outside = (threadRef !== null || tabId !== null) && isOutside(x);
     if (outside) {
       // The chat drag's own ghost and drop zone take over out there.
-      moveThreadContextDrag({ x, y }, { title, count: 1, ...(tabId ? { tabId } : {}) });
+      moveThreadContextDrag(
+        { x, y },
+        {
+          title,
+          count: 1,
+          ...(tabId ? { tabId, splitKey: splitTabKey(tabId) } : {}),
+          ...(threadRef ? { splitKey: parsed.id } : {}),
+        },
+      );
       emit(null);
       return;
     }
@@ -216,6 +227,7 @@ export function startFolderDrag(
     window.removeEventListener("keydown", escape);
     document.body.style.removeProperty("cursor");
     document.body.style.removeProperty("user-select");
+    setSidebarDragging(false);
     if (!dragging) return;
     // The click that ends a drag isn't a click on the row.
     const swallow = (click: MouseEvent) => {
@@ -242,6 +254,7 @@ export function startFolderDrag(
     window.removeEventListener("keydown", escape);
     document.body.style.removeProperty("cursor");
     document.body.style.removeProperty("user-select");
+    setSidebarDragging(false);
     endThreadContextDrag();
     emit(null);
   };
